@@ -357,8 +357,8 @@ await runSuite('Suite 3: Rewarded Touchpoint State Invariance (All 6 Flows)', as
   // Touchpoint 2: Arm Super Buff (25s Mega Starter) (GameModal.tsx:180)
   // ---------------------------------------------------------------------------
   {
-    let superBuffArmed = false;
-    let soundPlayed = false;
+    let superBuffArmed = false as boolean;
+    let soundPlayed = false as boolean;
 
     const simulateArmBuffAd = async (rewarded: boolean) => {
       if (rewarded) {
@@ -373,8 +373,8 @@ await runSuite('Suite 3: Rewarded Touchpoint State Invariance (All 6 Flows)', as
     assert(soundPlayed === true, 'Touchpoint 2 (Success): powerup sound played');
 
     // Case 2.2: Cancelled / Rejected
-    superBuffArmed = false;
-    soundPlayed = false;
+    superBuffArmed = false as boolean;
+    soundPlayed = false as boolean;
     await simulateArmBuffAd(false);
     assert(superBuffArmed === false, 'Touchpoint 2 (Cancelled): superBuffArmed remains false');
     assert(soundPlayed === false, 'Touchpoint 2 (Cancelled): powerup sound NOT played');
@@ -570,8 +570,8 @@ await runSuite('Suite 4: Commercial Transitions & Audio Suspension', async () =>
   }
 
   const mockCtx = new MockAudioContext();
-  let isMuted = false;
-  let isAdActive = false;
+  let isMuted = false as boolean;
+  let isAdActive = false as boolean;
 
   const mockSound = {
     suspendForAd() {

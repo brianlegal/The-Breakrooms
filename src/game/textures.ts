@@ -8,7 +8,6 @@
  */
 import * as THREE from 'three';
 import { GloveSkinId } from './progression';
-import { getLocale } from './i18n';
 
 export type WallVariant = 'normal' | 'reinforced' | 'golden' | 'border' | 'electric';
 export type BiomeType = 'level0' | 'poolrooms' | 'pipedreams' | 'hospital';
@@ -100,8 +99,7 @@ class TextureFactory {
     variant: WallVariant = 'normal',
     biome: BiomeType = 'level0'
   ): THREE.CanvasTexture {
-    const lang = getLocale();
-    const key = `wallpaper-v5-${variant}-${biome}-${variant === 'border' ? lang : 'all'}`;
+    const key = `wallpaper-v6-${variant}-${biome}`;
     if (this.cache.has(key)) return this.cache.get(key) as THREE.CanvasTexture;
 
     const canvas = document.createElement('canvas');
@@ -188,19 +186,16 @@ class TextureFactory {
           ctx.stroke();
         }
 
-        // Red Emergency Corridor Stripe
+        // Red Emergency Corridor Stripe (Pure geometric trim — zero text!)
         ctx.fillStyle = '#991b1b';
         ctx.fillRect(0, 210, 512, 76);
         ctx.fillStyle = '#ef4444';
         ctx.fillRect(0, 218, 512, 60);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.fillRect(0, 244, 512, 8);
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 5;
         ctx.strokeRect(0, 210, 512, 76);
-
-        ctx.font = '900 24px Impact, "Arial Black", sans-serif';
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-        ctx.fillText('ALERTA NÍVEL "!" • EMERGÊNCIA', 256, 256);
 
         // Dark hospital bumper rail & baseboard
         ctx.fillStyle = '#1e293b';
@@ -755,14 +750,25 @@ class TextureFactory {
         ctx.fill();
       }
 
-      ctx.font = '900 22px Impact, "Arial Black", sans-serif';
-      ctx.fillStyle = '#fca5a5';
-      ctx.textAlign = 'center';
-      ctx.fillText(
-        lang === 'pt' ? 'BLINDAGEM LIMITE • INDESTRUTÍVEL' : 'PERIMETER ARMOR • UNBREAKABLE',
-        256,
-        264
-      );
+      // Pure geometric armored chevron plate between perimeter beacons (zero text!)
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(112, 214, 288, 84);
+      ctx.clip();
+      ctx.fillStyle = '#7f1d1d';
+      for (let x = 80; x < 440; x += 48) {
+        ctx.beginPath();
+        ctx.moveTo(x, 214);
+        ctx.lineTo(x + 24, 214);
+        ctx.lineTo(x - 4, 298);
+        ctx.lineTo(x - 28, 298);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+      ctx.strokeStyle = '#fca5a5';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(112, 214, 288, 84);
 
       ctx.fillStyle = '#64748b';
       for (const rx of [48, 256, 464]) {
@@ -777,9 +783,9 @@ class TextureFactory {
       ctx.lineWidth = 18;
       ctx.strokeRect(9, 9, 494, 494);
     } else {
-      // BIOME-SPECIFIC BONUS JACKPOT WALLS (variant === 'golden'): ZERO yellow outside Level 0!
+      // BIOME-SPECIFIC BONUS JACKPOT WALLS (variant === 'golden'): ZERO yellow outside Level 0 & ZERO text!
       if (biome === 'poolrooms') {
-        // POOLROOMS BONUS: Aqua/Silver Diamond Crystal Mirrored Tiles (ZERO YELLOW!)
+        // POOLROOMS BONUS: Aqua/Silver Diamond Crystal Mirrored Tiles (ZERO YELLOW & ZERO TEXT!)
         const grad = ctx.createLinearGradient(0, 0, 512, 512);
         grad.addColorStop(0, '#ffffff');
         grad.addColorStop(0.3, '#cffafe');
@@ -808,21 +814,31 @@ class TextureFactory {
           }
         }
 
+        // Pure geometric diamond crystal centerpiece (zero text)
         ctx.fillStyle = '#083344';
         ctx.fillRect(48, 208, 416, 96);
         ctx.strokeStyle = '#67e8f9';
         ctx.lineWidth = 6;
         ctx.strokeRect(48, 208, 416, 96);
-        ctx.font = '900 24px Impact, "Arial Black", sans-serif';
-        ctx.fillStyle = '#ecfeff';
-        ctx.textAlign = 'center';
-        ctx.fillText('💎 CRISTAL DIAMANTE • +BÔNUS 💎', 256, 265);
+        for (const cx of [144, 256, 368]) {
+          ctx.fillStyle = '#ecfeff';
+          ctx.beginPath();
+          ctx.moveTo(cx, 222);
+          ctx.lineTo(cx + 34, 256);
+          ctx.lineTo(cx, 290);
+          ctx.lineTo(cx - 34, 256);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#06b6d4';
+          ctx.lineWidth = 4;
+          ctx.stroke();
+        }
 
         ctx.strokeStyle = '#06b6d4';
         ctx.lineWidth = 12;
         ctx.strokeRect(6, 6, 500, 500);
       } else if (biome === 'pipedreams') {
-        // PIPE DREAMS BONUS: Copper/Magma Industrial Boiler Wall with Incandescent Core (ZERO YELLOW!)
+        // PIPE DREAMS BONUS: Copper/Magma Industrial Boiler Wall with Incandescent Core (ZERO YELLOW & ZERO TEXT!)
         const bgGrad = ctx.createLinearGradient(0, 0, 0, 512);
         bgGrad.addColorStop(0, '#18181b');
         bgGrad.addColorStop(0.5, '#27272a');
@@ -846,7 +862,7 @@ class TextureFactory {
           }
         }
 
-        // Incandescent Orange/Red Boiler Core Grate
+        // Incandescent Orange/Red Boiler Core Grate (pure geometric grate bars — zero text!)
         const coreGrad = ctx.createRadialGradient(256, 256, 16, 256, 256, 170);
         coreGrad.addColorStop(0, '#ffffff');
         coreGrad.addColorStop(0.35, '#fb923c');
@@ -854,20 +870,19 @@ class TextureFactory {
         coreGrad.addColorStop(1, '#7c2d12');
         ctx.fillStyle = coreGrad;
         ctx.fillRect(56, 196, 400, 120);
+        ctx.fillStyle = '#18181b';
+        for (let gx = 96; gx <= 416; gx += 40) {
+          ctx.fillRect(gx - 5, 196, 10, 120);
+        }
         ctx.strokeStyle = '#18181b';
         ctx.lineWidth = 8;
         ctx.strokeRect(56, 196, 400, 120);
-
-        ctx.font = '900 24px Impact, "Arial Black", sans-serif';
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-        ctx.fillText('🔥 CALDEIRA DE MAGMA • +BÔNUS 🔥', 256, 265);
 
         ctx.strokeStyle = '#ea580c';
         ctx.lineWidth = 12;
         ctx.strokeRect(6, 6, 500, 500);
       } else if (biome === 'hospital') {
-        // HOSPITAL BONUS: Ruby Bio-Containment Vault Wall (Black/White Steel + Pulsing Red Core, ZERO YELLOW!)
+        // HOSPITAL BONUS: Ruby Bio-Containment Vault Wall (Black/White Steel + Pulsing Red Core, ZERO YELLOW & ZERO TEXT!)
         ctx.fillStyle = '#0f172a';
         ctx.fillRect(0, 0, 512, 512);
 
@@ -891,10 +906,20 @@ class TextureFactory {
         ctx.lineWidth = 6;
         ctx.strokeRect(48, 196, 416, 120);
 
-        ctx.font = '900 24px Impact, "Arial Black", sans-serif';
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-        ctx.fillText('🚨 COFRE RUBI • +BÔNUS 🚨', 256, 265);
+        // Pure geometric ruby vault core emblem (zero text)
+        for (const rx of [144, 256, 368]) {
+          ctx.fillStyle = '#ffe4e6';
+          ctx.beginPath();
+          ctx.moveTo(rx, 218);
+          ctx.lineTo(rx + 36, 256);
+          ctx.lineTo(rx, 294);
+          ctx.lineTo(rx - 36, 256);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#881337';
+          ctx.lineWidth = 4;
+          ctx.stroke();
+        }
 
         ctx.strokeStyle = '#ff1144';
         ctx.lineWidth = 12;

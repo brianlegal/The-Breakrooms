@@ -21,6 +21,14 @@ export default function App() {
   const mountRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const [, setLocaleVersion] = useState(0);
+  const [isTouchDevice, setIsTouchDevice] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return (
+      'ontouchstart' in window ||
+      navigator.maxTouchPoints > 0 ||
+      window.matchMedia?.('(pointer: coarse)').matches === true
+    );
+  });
 
   const initialProfile = progressionManager.getProfile();
   const [gameState, setGameState] = useState<GameState>({
@@ -89,46 +97,84 @@ export default function App() {
       (window as unknown as Record<string, unknown>).__GAME_ENGINE__ = engine;
     }
 
-    // Touch look drag handler on canvas container for mobile
+    // Universal reactive touch detection for convertible Chromebooks, iPads, and tablets
+    const detectTouch = () => {
+      if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+        setIsTouchDevice(true);
+      }
+    };
+    const onFirstTouch = () => setIsTouchDevice(true);
+    detectTouch();
+    window.addEventListener('touchstart', onFirstTouch, { passive: true });
+    window.addEventListener('resize', detectTouch);
+
+    // Multi-touch isolated look drag handler on canvas container (ignores touches on virtual buttons/joystick)
+    let lookTouchId: number | null = null;
     let touchStartX = 0;
     let touchStartY = 0;
-    let isTouchingLook = false;
 
     const handleTouchStart = (e: TouchEvent) => {
-      const t = e.touches[0];
-      if (t.clientX > window.innerWidth * 0.35 || t.clientY < window.innerHeight * 0.6) {
-        isTouchingLook = true;
-        touchStartX = t.clientX;
-        touchStartY = t.clientY;
-        soundManager.init();
+      if (lookTouchId !== null) return;
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('[data-touch-ui="true"]') || target?.closest('button')) {
+        return;
+      }
+
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        // Ignore lower-left floating joystick zone; allow camera drag anywhere else on canvas
+        const inLeftJoystickZone =
+          t.clientX < window.innerWidth * 0.44 && t.clientY > window.innerHeight * 0.44;
+        if (!inLeftJoystickZone) {
+          lookTouchId = t.identifier;
+          touchStartX = t.clientX;
+          touchStartY = t.clientY;
+          soundManager.init();
+          break;
+        }
       }
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (!isTouchingLook || !engineRef.current) return;
-      const t = e.touches[0];
-      const dx = t.clientX - touchStartX;
-      const dy = t.clientY - touchStartY;
-      touchStartX = t.clientX;
-      touchStartY = t.clientY;
+      if (lookTouchId === null || !engineRef.current) return;
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        if (t.identifier === lookTouchId) {
+          const dx = t.clientX - touchStartX;
+          const dy = t.clientY - touchStartY;
+          touchStartX = t.clientX;
+          touchStartY = t.clientY;
 
-      const touchSensitivity = 0.0045;
-      engineRef.current.rotateCamera(dx * touchSensitivity, dy * touchSensitivity);
+          const touchSensitivity = 0.0045;
+          engineRef.current.rotateCamera(dx * touchSensitivity, dy * touchSensitivity);
+          break;
+        }
+      }
     };
 
-    const handleTouchEnd = () => {
-      isTouchingLook = false;
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (lookTouchId === null) return;
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === lookTouchId) {
+          lookTouchId = null;
+          break;
+        }
+      }
     };
 
     const dom = mountRef.current;
     dom.addEventListener('touchstart', handleTouchStart, { passive: true });
     window.addEventListener('touchmove', handleTouchMove, { passive: true });
     window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    window.addEventListener('touchcancel', handleTouchEnd, { passive: true });
 
     return () => {
+      window.removeEventListener('touchstart', onFirstTouch);
+      window.removeEventListener('resize', detectTouch);
       dom.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('touchcancel', handleTouchEnd);
       engine.dispose();
       engineRef.current = null;
     };
@@ -203,14 +249,17 @@ export default function App() {
         onOpenMenu={handleOpenMenu}
       />
 
-      {/* Mobile Touch Controls Overlay */}
-      {gameState.status === 'playing' && !gameState.isPaused && !gameState.revivePromptActive && (
-        <TouchControls
-          engine={engineRef.current}
-          canSuperSmash={gameState.isRageFull}
-          hasBall={gameState.hasBall}
-        />
-      )}
+      {/* Universal Touch / Tablet / Hybrid Chromebook Controls Overlay */}
+      {isTouchDevice &&
+        gameState.status === 'playing' &&
+        !gameState.isPaused &&
+        !gameState.revivePromptActive && (
+          <TouchControls
+            engine={engineRef.current}
+            canSuperSmash={gameState.isRageFull}
+            hasBall={gameState.hasBall}
+          />
+        )}
 
       {/* Level 0 Blurred Corridor Lobby & Pop-up GUI System */}
       <GameModal

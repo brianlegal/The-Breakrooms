@@ -172,9 +172,13 @@ export const GameModal: React.FC<GameModalProps> = ({
     }
   };
 
-  // Arm Super Buff via Rewarded Ad before pressing PLAY
+  // Arm Super Buff via Rewarded Ad before pressing PLAY (or launch immediately if already armed)
   const handleArmBuffAd = async () => {
-    if (superBuffArmed || busyAdAction) return;
+    if (busyAdAction) return;
+    if (superBuffArmed) {
+      handlePlayClick();
+      return;
+    }
     soundManager.playUiClick();
     setBusyAdAction('arm_buff');
     const rewarded = await portalSDK.requestRewardedAd();

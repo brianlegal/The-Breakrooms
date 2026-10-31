@@ -107,6 +107,9 @@ export class GameEngine {
   public playerVelocity = new THREE.Vector3();
   public cameraRotation = new THREE.Euler(0, 0, 0, 'YXZ');
   private moveInput = new THREE.Vector2();
+  private keyboardMoveInput = new THREE.Vector2();
+  private touchMoveInput = new THREE.Vector2();
+  private keyboardTurnInput = 0;
   private isWalking = false;
   private baseMoveSpeed = 5.4;
   private footstepTimer = 0;
@@ -126,9 +129,11 @@ export class GameEngine {
   private currentCameraRoll = 0;
   private readonly lockedFov = 105;
 
-  // 4-Hit Boxing Combo Alternation Index & Continuous Hold-to-Punch (Turbo-Punch)
+  // 4-Hit Boxing Combo Alternation Index & Continuous Hold-to-Punch (Mouse, Keyboard, or Touch)
   private comboStrikeIndex = 0;
   private isLeftMouseDown = false;
+  private isKeyPunchHeld = false;
+  private isTouchPunchHeld = false;
   private hasLockedPointerInRun = false;
   private hasInteractedInRun = false;
   private hudSyncAccumulator = 0;
@@ -398,6 +403,9 @@ export class GameEngine {
   public openMenu() {
     portalSDK.gameplayStop();
     this.isLeftMouseDown = false;
+    this.isKeyPunchHeld = false;
+    this.isTouchPunchHeld = false;
+    this.keyboardTurnInput = 0;
     if (document.pointerLockElement) {
       document.exitPointerLock?.();
     }
@@ -432,8 +440,8 @@ export class GameEngine {
   public startRun(startLevel = 1, withSuperBuff = false) {
     portalSDK.commercialBreak().catch(() => {});
     const profile = progressionManager.getProfile();
-    this.powerupDamageMult = 1.0;
-    this.gloveScale = 1.0;
+    this.powerupDamageMult = withSuperBuff ? 2.0 : 1.0;
+    this.gloveScale = withSuperBuff ? 1.22 : 1.0;
     this.isGolden = withSuperBuff;
     this.goldenTimer = withSuperBuff ? 25.0 : 0;
     this.superMultiBallTimer = withSuperBuff ? 25.0 : 0;
@@ -444,6 +452,9 @@ export class GameEngine {
     this.shockParalysisTimer = 0;
     this.comboStrikeIndex = 0;
     this.isLeftMouseDown = false;
+    this.isKeyPunchHeld = false;
+    this.isTouchPunchHeld = false;
+    this.keyboardTurnInput = 0;
     this.hasLockedPointerInRun = false;
     this.hasInteractedInRun = true;
     this.reviveUsedInRun = false;
@@ -620,7 +631,16 @@ export class GameEngine {
     this.isReviveAdPlaying = false;
 
     if (rewarded) {
-      this.claimDoubleRunCoins();
+      if (this.state.runCoinsEarned <= 0) {
+        const minBonus = Math.round(50 * progressionManager.getRebirthCoinMultiplier());
+        progressionManager.claimAdJackpot(minBonus);
+        this.state.runCoinsEarned += minBonus;
+        this.state.doubleRunCoinsClaimed = true;
+        soundManager.playJackpotWin();
+        this.refreshProfileState();
+      } else {
+        this.claimDoubleRunCoins();
+      }
     }
     this.state.revivePromptActive = false;
     this.state.revivePromptCountdown = 0;
@@ -758,6 +778,7 @@ export class GameEngine {
    */
   private triggerNextLevelTransition() {
     portalSDK.commercialBreak().catch(() => {});
+    portalSDK.gameplayStart();
     const clearedLevel = this.state.level;
     const nextLevel = clearedLevel + 1;
     const rebirthTimerBonus = progressionManager.getRebirthTimerBonus();
@@ -1018,8 +1039,22 @@ export class GameEngine {
 
       this.comicEffects.triggerPunchShake(0.18, 45, punchDir);
     } else {
-      const entityHit = this.entityManager.getEntityAhead(this.raycaster, punchReach + 0.35);
-      const wallHit = this.world.getWallAhead(this.raycaster, punchReach);
+      let entityHit = this.entityManager.getEntityAhead(this.raycaster, punchReach + 0.35);
+      let wallHit = this.world.getWallAhead(this.raycaster, punchReach);
+
+      // Chromebook / Touch Magnetic Auto-Aim Assist (~20° cone):
+      // If center ray missed slightly, snap to the best entity or destructible wall within ~20°!
+      if (!entityHit && !wallHit) {
+        const magnetHit = this.findMagneticConeTarget(punchReach, 20);
+        if (magnetHit) {
+          this.applySoftMagneticYawSnap(magnetHit.targetPoint, 0.38);
+          if (magnetHit.entityHit) {
+            entityHit = magnetHit.entityHit;
+          } else if (magnetHit.wallHit) {
+            wallHit = magnetHit.wallHit;
+          }
+        }
+      }
 
       const isHeavyStrike = type === 'uppercut_right' || type === 'hook_left' || type === 'right';
       const baseDamage = isHeavyStrike ? 165 : 120;
@@ -1324,8 +1359,14 @@ export class GameEngine {
       this.state.elapsedTime += delta;
       this.hudSyncAccumulator += delta;
 
-      // Hold Left Mouse Button Continuous Turbo-Combo Punch!
+      // Hold Left Mouse, Universal Keyboard Action (Space / Enter / J), or Touch Punch Button for Continuous Turbo-Combo!
       if (this.isLeftMouseDown && this.transitionTimer <= 0 && this.shockParalysisTimer <= 0) {
+        this.punch('combo');
+      } else if (
+        (this.isKeyPunchHeld || this.isTouchPunchHeld) &&
+        this.transitionTimer <= 0 &&
+        this.shockParalysisTimer <= 0
+      ) {
         this.punch('combo');
       }
 
@@ -1456,6 +1497,12 @@ export class GameEngine {
       if (this.camera.fov !== this.lockedFov) {
         this.camera.fov = this.lockedFov;
         this.camera.updateProjectionMatrix();
+      }
+
+      // Chromebook Keyboard Camera Rotation ([←]/[→] or [Q]/[E])
+      if (this.keyboardTurnInput !== 0 && this.shockParalysisTimer <= 0) {
+        const keyTurnSpeed = 2.45; // rad/s (~140 deg/s smooth arcade turn)
+        this.rotateCamera(this.keyboardTurnInput * keyTurnSpeed * delta, 0);
       }
 
       this.updatePlayerMovement(delta);
@@ -1768,10 +1815,171 @@ export class GameEngine {
         isIndestructible: wallTarget.wall.isIndestructible,
       };
     } else {
-      this.state.aimingAtEntity = false;
-      this.state.aimingAtWall = false;
-      this.state.targetWallHealth = undefined;
-      this.state.targetEntityHealth = undefined;
+      // Check ~20° Magnetic Auto-Aim Assist Cone for nearby walls or entities
+      const magnet = this.findMagneticConeTarget(3.6, 20);
+      if (magnet) {
+        // Gentle magnetic snap when moving or turning near a target within 20°
+        if (this.isWalking || this.keyboardTurnInput !== 0) {
+          this.applySoftMagneticYawSnap(magnet.targetPoint, 0.08);
+        }
+        if (magnet.entityHit) {
+          this.state.aimingAtEntity = true;
+          this.state.aimingAtWall = true;
+          this.state.targetEntityHealth = {
+            current: Math.max(0, magnet.entityHit.entity.health),
+            max: magnet.entityHit.entity.maxHealth,
+            isBuilding: magnet.entityHit.entity.state === 'building',
+            isBoss: magnet.entityHit.entity.isBoss,
+          };
+          this.state.targetWallHealth = undefined;
+        } else if (magnet.wallHit) {
+          this.state.aimingAtEntity = false;
+          this.state.aimingAtWall = true;
+          this.state.targetEntityHealth = undefined;
+          this.state.targetWallHealth = {
+            current: Math.max(0, magnet.wallHit.wall.health),
+            max: magnet.wallHit.wall.maxHealth,
+            variant: magnet.wallHit.wall.variant,
+            isIndestructible: magnet.wallHit.wall.isIndestructible,
+          };
+        }
+      } else {
+        this.state.aimingAtEntity = false;
+        this.state.aimingAtWall = false;
+        this.state.targetWallHealth = undefined;
+        this.state.targetEntityHealth = undefined;
+      }
+    }
+  }
+
+  /**
+   * Finds the closest living entity or breakable wall within `maxAngleDeg` (~20°) of the camera's
+   * forward horizontal look vector and within `maxDistance` meters.
+   */
+  private findMagneticConeTarget(
+    maxDistance: number,
+    maxAngleDeg = 20
+  ): {
+    targetPoint: THREE.Vector3;
+    entityHit?: { entity: SkeletalEntity; hitPoint: THREE.Vector3 };
+    wallHit?: { wall: DestructibleWall; hitPoint: THREE.Vector3 };
+  } | null {
+    const forward = new THREE.Vector3();
+    this.camera.getWorldDirection(forward);
+    const forwardFlat = new THREE.Vector3(forward.x, 0, forward.z);
+    if (forwardFlat.lengthSq() < 0.0001) return null;
+    forwardFlat.normalize();
+
+    const minCos = Math.cos(THREE.MathUtils.degToRad(maxAngleDeg));
+
+    // 1. Prioritize living entities within the ~20° magnetic cone
+    let bestEntity: SkeletalEntity | null = null;
+    let bestEntityScore = -Infinity;
+    for (const ent of this.entityManager.entities) {
+      if (ent.isDead) continue;
+      const toEnt = new THREE.Vector3(
+        ent.position.x - this.playerPosition.x,
+        0,
+        ent.position.z - this.playerPosition.z
+      );
+      const dist = toEnt.length();
+      if (dist < 0.15 || dist > maxDistance + 0.35) continue;
+      toEnt.divideScalar(dist);
+      const cosAngle = forwardFlat.dot(toEnt);
+      if (cosAngle >= minCos) {
+        const score = cosAngle * 2.0 - dist / maxDistance;
+        if (score > bestEntityScore) {
+          bestEntityScore = score;
+          bestEntity = ent;
+        }
+      }
+    }
+
+    if (bestEntity) {
+      const hitPoint = bestEntity.position.clone().add(new THREE.Vector3(0, 1.4, 0));
+      return {
+        targetPoint: hitPoint,
+        entityHit: { entity: bestEntity, hitPoint },
+      };
+    }
+
+    // 2. Check breakable walls within the ~20° magnetic cone
+    const candidateWalls = this.world.getWallsInRadius(this.playerPosition, maxDistance + 0.6);
+    let bestWall: DestructibleWall | null = null;
+    let bestWallPoint: THREE.Vector3 | null = null;
+    let bestWallScore = -Infinity;
+
+    for (const wall of candidateWalls) {
+      if (wall.isDestroyed || wall.isIndestructible) continue;
+      // Compute closest point on wall's horizontal AABB to player
+      const halfX = wall.size.x * 0.5;
+      const halfZ = wall.size.z * 0.5;
+      const clampedX = Math.max(
+        wall.center.x - halfX,
+        Math.min(wall.center.x + halfX, this.playerPosition.x)
+      );
+      const clampedZ = Math.max(
+        wall.center.z - halfZ,
+        Math.min(wall.center.z + halfZ, this.playerPosition.z)
+      );
+
+      // Blend closest point with wall center for stable angular aiming
+      const aimX = clampedX * 0.65 + wall.center.x * 0.35;
+      const aimZ = clampedZ * 0.65 + wall.center.z * 0.35;
+      const dx = aimX - this.playerPosition.x;
+      const dz = aimZ - this.playerPosition.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist < 0.1 || dist > maxDistance) continue;
+
+      const cosAngle = (forwardFlat.x * dx + forwardFlat.z * dz) / dist;
+      if (cosAngle >= minCos) {
+        const score = cosAngle * 2.0 - dist / maxDistance;
+        if (score > bestWallScore) {
+          bestWallScore = score;
+          bestWall = wall;
+          bestWallPoint = new THREE.Vector3(clampedX, this.playerPosition.y, clampedZ);
+        }
+      }
+    }
+
+    if (bestWall && bestWallPoint) {
+      return {
+        targetPoint: bestWall.center,
+        wallHit: { wall: bestWall, hitPoint: bestWallPoint },
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Softly adjusts `cameraRotation.y` toward `targetPoint` when within the ~20° magnetic assist cone.
+   */
+  private applySoftMagneticYawSnap(targetPoint: THREE.Vector3, strength = 0.25) {
+    const dx = targetPoint.x - this.playerPosition.x;
+    const dz = targetPoint.z - this.playerPosition.z;
+    if (dx * dx + dz * dz < 0.04) return;
+
+    const desiredYaw = Math.atan2(-dx, -dz);
+    let diff = desiredYaw - this.cameraRotation.y;
+    diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+
+    const maxSnapRad = THREE.MathUtils.degToRad(20);
+    if (Math.abs(diff) <= maxSnapRad) {
+      this.cameraRotation.y += diff * strength;
+    }
+  }
+
+  private syncCombinedMoveInput() {
+    if (this.shockParalysisTimer > 0) {
+      this.moveInput.set(0, 0);
+      return;
+    }
+    const combinedX = this.keyboardMoveInput.x + this.touchMoveInput.x;
+    const combinedY = this.keyboardMoveInput.y + this.touchMoveInput.y;
+    this.moveInput.set(combinedX, combinedY);
+    if (this.moveInput.lengthSq() > 1) {
+      this.moveInput.normalize();
     }
   }
 
@@ -1779,11 +1987,16 @@ export class GameEngine {
     if (x !== 0 || y !== 0) {
       this.hasInteractedInRun = true;
     }
+    this.touchMoveInput.set(x, y);
     if (this.shockParalysisTimer > 0) {
       this.moveInput.set(0, 0);
       return;
     }
-    this.moveInput.set(x, y);
+    this.syncCombinedMoveInput();
+  }
+
+  public setTouchPunchHeld(held: boolean) {
+    this.isTouchPunchHeld = held;
   }
 
   public rotateCamera(deltaYaw: number, deltaPitch: number) {
@@ -1812,9 +2025,17 @@ export class GameEngine {
       let y = 0;
       if (keysDown.has('KeyW') || keysDown.has('ArrowUp')) y += 1;
       if (keysDown.has('KeyS') || keysDown.has('ArrowDown')) y -= 1;
-      if (keysDown.has('KeyA') || keysDown.has('ArrowLeft')) x -= 1;
-      if (keysDown.has('KeyD') || keysDown.has('ArrowRight')) x += 1;
-      this.setMoveInput(x, y);
+      if (keysDown.has('KeyA')) x -= 1;
+      if (keysDown.has('KeyD')) x += 1;
+
+      this.keyboardMoveInput.set(x, y);
+      this.syncCombinedMoveInput();
+
+      // Chromebook Trackpad-Free Camera Rotation via [←]/[→] or [Q]/[E]
+      let turn = 0;
+      if (keysDown.has('ArrowLeft') || keysDown.has('KeyQ')) turn -= 1;
+      if (keysDown.has('ArrowRight') || keysDown.has('KeyE')) turn += 1;
+      this.keyboardTurnInput = turn;
     };
 
     window.addEventListener('keydown', (e) => {
@@ -1838,18 +2059,38 @@ export class GameEngine {
         return;
       this.hasInteractedInRun = true;
       soundManager.init();
+
+      if (
+        e.code === 'ArrowLeft' ||
+        e.code === 'ArrowRight' ||
+        e.code === 'ArrowUp' ||
+        e.code === 'ArrowDown' ||
+        e.code === 'Space' ||
+        e.code === 'Enter'
+      ) {
+        e.preventDefault();
+      }
+
       keysDown.add(e.code);
       updateKeys();
 
-      if (e.code === 'KeyQ' || e.code === 'KeyJ') {
+      // Universal Keyboard Action Keys for Chromebook / Flash-style 100% Keyboard Play:
+      // [Space], [Enter], or [J] executes Punch (with hold-to-punch turbo support)
+      if (
+        e.code === 'Space' ||
+        e.code === 'Enter' ||
+        e.code === 'NumpadEnter' ||
+        e.code === 'KeyJ'
+      ) {
+        this.isKeyPunchHeld = true;
         this.punch('combo');
-      } else if (e.code === 'KeyE' || e.code === 'KeyK') {
+      } else if (e.code === 'KeyK' || e.code === 'KeyL') {
         this.punch('uppercut_right');
       } else if (e.code === 'KeyF' || e.code === 'KeyR') {
         if (this.state.isRageFull) {
           this.punch('super');
         }
-      } else if (e.code === 'Space') {
+      } else if (e.code === 'KeyC' || e.code === 'KeyV') {
         e.preventDefault();
         this.jump();
       } else if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
@@ -1860,6 +2101,19 @@ export class GameEngine {
 
     window.addEventListener('keyup', (e) => {
       keysDown.delete(e.code);
+      if (
+        e.code === 'Space' ||
+        e.code === 'Enter' ||
+        e.code === 'NumpadEnter' ||
+        e.code === 'KeyJ'
+      ) {
+        this.isKeyPunchHeld = (
+          keysDown.has('Space') ||
+          keysDown.has('Enter') ||
+          keysDown.has('NumpadEnter') ||
+          keysDown.has('KeyJ')
+        );
+      }
       updateKeys();
     });
 
@@ -1947,6 +2201,12 @@ export class GameEngine {
 
     window.addEventListener('blur', () => {
       this.isLeftMouseDown = false;
+      this.isKeyPunchHeld = false;
+      this.isTouchPunchHeld = false;
+      this.keyboardTurnInput = 0;
+      this.keyboardMoveInput.set(0, 0);
+      this.touchMoveInput.set(0, 0);
+      this.moveInput.set(0, 0);
     });
 
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());

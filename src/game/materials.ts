@@ -127,7 +127,7 @@ export class MaterialFactory {
     variant: WallVariant = 'normal',
     biome: BiomeType = 'level0'
   ): THREE.MeshToonMaterial {
-    const key = `v5_${variant}_${biome}`;
+    const key = `v6_${variant}_${biome}`;
     let mat = this.wallMatCache.get(key);
     if (!mat) {
       const tex = textureFactory.getBackroomsWallpaper(variant, biome);
@@ -164,7 +164,7 @@ export class MaterialFactory {
     variant: WallVariant = 'normal',
     biome: BiomeType = 'level0'
   ): THREE.MeshToonMaterial {
-    const key = `grounded_${variant}_${biome}`;
+    const key = `grounded_v6_${variant}_${biome}`;
     let mat = this.groundedWallMatCache.get(key);
     if (!mat) {
       const tex = textureFactory.getBackroomsWallpaper(variant, biome);

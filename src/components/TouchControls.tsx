@@ -1,8 +1,13 @@
 /**
- * Mobile / Touch Controls Overlay with Glossy Plump Cartoon Buttons & Custom Vector Icons (zero emojis).
+ * Universal Mobile / Tablet / Touchscreen Chromebook Controls Overlay
+ * Features:
+ * - Dynamic Thumb Floating Joystick in the lower-left quadrant (anchors where the thumb touches)
+ * - Strict Touch Isolation (`e.stopPropagation()`) on both joystick and right-side button clusters
+ * - Multi-touch safe identifier tracking & Hold-to-Punch Turbo Combo support
  */
 import React, { useRef, useState } from 'react';
 import { GameEngine } from '../game/gameEngine';
+import { soundManager } from '../game/audio';
 import { t } from '../game/i18n';
 import {
   CartoonBombIcon,
@@ -19,34 +24,53 @@ interface TouchControlsProps {
 
 export const TouchControls: React.FC<TouchControlsProps> = ({ engine, canSuperSmash, hasBall }) => {
   const [joystickActive, setJoystickActive] = useState(false);
+  const [anchorPos, setAnchorPos] = useState<{ x: number; y: number } | null>(null);
   const [stickPos, setStickPos] = useState({ x: 0, y: 0 });
-  const joystickBaseRef = useRef<HTMLDivElement>(null);
+  const touchZoneRef = useRef<HTMLDivElement>(null);
   const touchIdRef = useRef<number | null>(null);
+  const anchorRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const strings = t();
 
-  const handleTouchStart = (e: React.TouchEvent) => {
+  const maxRadius = 46;
+
+  const handleJoystickTouchStart = (e: React.TouchEvent) => {
+    e.stopPropagation();
+    soundManager.init();
     if (touchIdRef.current !== null) return;
+
     const touch = e.changedTouches[0];
+    if (!touch) return;
+
     touchIdRef.current = touch.identifier;
+    anchorRef.current = { x: touch.clientX, y: touch.clientY };
+    setAnchorPos({ x: touch.clientX, y: touch.clientY });
     setJoystickActive(true);
-    updateJoystick(touch.clientX, touch.clientY);
+    setStickPos({ x: 0, y: 0 });
+    engine?.setMoveInput(0, 0);
   };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
+  const handleJoystickTouchMove = (e: React.TouchEvent) => {
+    e.stopPropagation();
+    if (touchIdRef.current === null) return;
+
     for (let i = 0; i < e.changedTouches.length; i++) {
       const touch = e.changedTouches[i];
       if (touch.identifier === touchIdRef.current) {
-        updateJoystick(touch.clientX, touch.clientY);
+        updateFloatingJoystick(touch.clientX, touch.clientY);
         break;
       }
     }
   };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
+  const handleJoystickTouchEnd = (e: React.TouchEvent) => {
+    e.stopPropagation();
+    if (touchIdRef.current === null) return;
+
     for (let i = 0; i < e.changedTouches.length; i++) {
       if (e.changedTouches[i].identifier === touchIdRef.current) {
         touchIdRef.current = null;
         setJoystickActive(false);
+        setAnchorPos(null);
         setStickPos({ x: 0, y: 0 });
         engine?.setMoveInput(0, 0);
         break;
@@ -54,13 +78,11 @@ export const TouchControls: React.FC<TouchControlsProps> = ({ engine, canSuperSm
     }
   };
 
-  const updateJoystick = (clientX: number, clientY: number) => {
-    if (!joystickBaseRef.current || !engine) return;
-    const rect = joystickBaseRef.current.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
+  const updateFloatingJoystick = (clientX: number, clientY: number) => {
+    if (!engine) return;
+    const centerX = anchorRef.current.x;
+    const centerY = anchorRef.current.y;
 
-    const maxRadius = 45;
     let dx = clientX - centerX;
     let dy = clientY - centerY;
     const distance = Math.hypot(dx, dy);
@@ -77,17 +99,44 @@ export const TouchControls: React.FC<TouchControlsProps> = ({ engine, canSuperSm
     engine.setMoveInput(normX, normY);
   };
 
+  const stopTouchPropagation = (e: React.TouchEvent) => {
+    e.stopPropagation();
+    soundManager.init();
+  };
+
   return (
-    <div className="pointer-events-none absolute inset-0 z-30 flex select-none md:hidden">
-      {/* Virtual Joystick (Left) */}
-      <div className="absolute bottom-20 left-6 pointer-events-auto">
+    <div
+      data-touch-ui="true"
+      className="pointer-events-none absolute inset-0 z-30 flex select-none"
+    >
+      {/* Dynamic Thumb Floating Joystick Zone (Lower-Left Quadrant) */}
+      <div
+        ref={touchZoneRef}
+        data-touch-ui="true"
+        onTouchStart={handleJoystickTouchStart}
+        onTouchMove={handleJoystickTouchMove}
+        onTouchEnd={handleJoystickTouchEnd}
+        onTouchCancel={handleJoystickTouchEnd}
+        className="pointer-events-auto absolute bottom-0 left-0 h-[56vh] w-[44vw] touch-none"
+      >
+        {/* Joystick Ring: Anchors at thumb touch coordinates when active, or rests at bottom-left */}
         <div
-          ref={joystickBaseRef}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          onTouchCancel={handleTouchEnd}
-          className="relative flex h-28 w-28 items-center justify-center rounded-full border-4 border-[#7a1c14] bg-black/45 backdrop-blur-xs"
+          className="pointer-events-none flex h-28 w-28 items-center justify-center rounded-full border-4 border-[#7a1c14] bg-black/45 backdrop-blur-xs transition-opacity duration-150"
+          style={
+            joystickActive && anchorPos
+              ? {
+                  position: 'fixed',
+                  left: `${anchorPos.x - 56}px`,
+                  top: `${anchorPos.y - 56}px`,
+                  opacity: 1,
+                }
+              : {
+                  position: 'absolute',
+                  left: '24px',
+                  bottom: '80px',
+                  opacity: 0.82,
+                }
+          }
         >
           <div
             className="cartoon-btn h-12 w-12 !rounded-full"
@@ -99,11 +148,24 @@ export const TouchControls: React.FC<TouchControlsProps> = ({ engine, canSuperSm
         </div>
       </div>
 
-      {/* Action Buttons (Right) */}
-      <div className="absolute bottom-20 right-6 flex flex-col gap-2.5 pointer-events-auto">
+      {/* Action Buttons Cluster (Right) — Isolated from Camera Touch Rotation */}
+      <div
+        data-touch-ui="true"
+        onTouchStart={stopTouchPropagation}
+        onTouchMove={stopTouchPropagation}
+        onTouchEnd={stopTouchPropagation}
+        onTouchCancel={stopTouchPropagation}
+        onMouseDown={(e) => e.stopPropagation()}
+        className="pointer-events-auto absolute bottom-20 right-6 flex flex-col gap-2.5 touch-none"
+      >
         {hasBall && (
           <button
             type="button"
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              soundManager.init();
+              engine?.punch('throw');
+            }}
             onClick={() => engine?.punch('throw')}
             className="cartoon-btn cartoon-btn-purple flex h-12 w-full items-center justify-center gap-2 px-4 font-arcade text-xs animate-pulse"
           >
@@ -115,6 +177,11 @@ export const TouchControls: React.FC<TouchControlsProps> = ({ engine, canSuperSm
         {canSuperSmash && !hasBall && (
           <button
             type="button"
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              soundManager.init();
+              engine?.punch('super');
+            }}
             onClick={() => engine?.punch('super')}
             className="cartoon-btn flex h-12 w-full items-center justify-center gap-2 px-4 font-arcade text-sm animate-bounce"
           >
@@ -127,6 +194,11 @@ export const TouchControls: React.FC<TouchControlsProps> = ({ engine, canSuperSm
         <div className="flex gap-2">
           <button
             type="button"
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              soundManager.init();
+              engine?.jump();
+            }}
             onClick={() => engine?.jump()}
             className="cartoon-btn flex h-11 flex-1 items-center justify-center gap-1 px-3 font-arcade text-[11px]"
           >
@@ -134,6 +206,11 @@ export const TouchControls: React.FC<TouchControlsProps> = ({ engine, canSuperSm
           </button>
           <button
             type="button"
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              soundManager.init();
+              engine?.dash();
+            }}
             onClick={() => engine?.dash()}
             className="cartoon-btn cartoon-btn-green flex h-11 flex-1 items-center justify-center gap-1 px-3 font-arcade text-[11px]"
           >
@@ -146,6 +223,20 @@ export const TouchControls: React.FC<TouchControlsProps> = ({ engine, canSuperSm
         <div className="flex gap-2">
           <button
             type="button"
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              soundManager.init();
+              engine?.setTouchPunchHeld(true);
+              engine?.punch('combo');
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation();
+              engine?.setTouchPunchHeld(false);
+            }}
+            onTouchCancel={(e) => {
+              e.stopPropagation();
+              engine?.setTouchPunchHeld(false);
+            }}
             onClick={() => engine?.punch('combo')}
             className="cartoon-btn cartoon-btn-red flex h-16 w-18 flex-col items-center justify-center gap-1 font-arcade text-xs"
           >
@@ -159,6 +250,11 @@ export const TouchControls: React.FC<TouchControlsProps> = ({ engine, canSuperSm
 
           <button
             type="button"
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              soundManager.init();
+              engine?.punch('uppercut_right');
+            }}
             onClick={() => engine?.punch('uppercut_right')}
             className="cartoon-btn flex h-16 w-18 flex-col items-center justify-center gap-1 font-arcade text-xs"
           >
@@ -174,3 +270,4 @@ export const TouchControls: React.FC<TouchControlsProps> = ({ engine, canSuperSm
     </div>
   );
 };
+

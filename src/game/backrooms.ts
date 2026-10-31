@@ -738,7 +738,9 @@ export class BackroomsWorld {
         wall.biome
       );
 
-      const isConcrete = true || (wall.variant === 'reinforced' || wall.biome === 'pipedreams');
+      const isConcrete = Boolean(
+        wall.variant === 'reinforced' || wall.biome === 'pipedreams' || wall.id
+      );
       soundManager.playWallCollapse(
         wall.variant === 'golden' || wall.variant === 'electric',
         wall.biome,
