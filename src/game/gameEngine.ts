@@ -438,7 +438,7 @@ export class GameEngine {
    * (Golden Fists + Multi-Ball 25s!).
    */
   public startRun(startLevel = 1, withSuperBuff = false) {
-    portalSDK.commercialBreak().catch(() => {});
+    // Flowchart Rule C -> D: Clique no Botão JOGAR NUNCA dispara anúncio; Gameplay começa imediatamente!
     const profile = progressionManager.getProfile();
     this.powerupDamageMult = withSuperBuff ? 2.0 : 1.0;
     this.gloveScale = withSuperBuff ? 1.22 : 1.0;
@@ -665,7 +665,12 @@ export class GameEngine {
     soundManager.setUrgencyMode(false);
     soundManager.setMusicContext('gameover', 'level0', false, false);
     portalSDK.gameplayStop();
-    portalSDK.commercialBreak().catch(() => {});
+    // Flowchart Rule E -> F -> G -> H / I:
+    // Only trigger Commercial Break on definitive Game Over if >150s passed since last ad
+    // AND the player did NOT watch a rewarded ad recently.
+    if (portalSDK.canShowGameOverCommercialBreak()) {
+      portalSDK.commercialBreak().catch(() => {});
+    }
     if (document.pointerLockElement) {
       document.exitPointerLock?.();
     }
@@ -777,7 +782,7 @@ export class GameEngine {
    * Applies Rebirth Global Coin/Score Multiplier and resets `comboTimer` between rooms.
    */
   private triggerNextLevelTransition() {
-    portalSDK.commercialBreak().catch(() => {});
+    // Flowchart Rule A -> B: Vitória de Sala / Level Clear NUNCA dispara anúncio; Próxima sala direta em 1.2s!
     portalSDK.gameplayStart();
     const clearedLevel = this.state.level;
     const nextLevel = clearedLevel + 1;
@@ -823,7 +828,7 @@ export class GameEngine {
     soundManager.playWin();
     this.comicEffects.triggerPunchShake(0.14, 40);
 
-    this.transitionTimer = 1.25;
+    this.transitionTimer = 1.2;
     this.state.levelTransition = {
       active: true,
       clearedLevel,

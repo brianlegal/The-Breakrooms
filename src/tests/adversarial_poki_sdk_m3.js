@@ -342,31 +342,34 @@ await runAsyncSuite('Suite 5: Commercial Break Invocations in GameEngine', async
 
   const engineContent = fs.readFileSync(enginePath, 'utf-8');
 
-  // 1. finalizeGameOver() invocation
-  const hasGameOverCommercial = /finalizeGameOver\(\)\s*\{[\s\S]*?portalSDK\.commercialBreak\(\)/.test(
-    engineContent
-  );
+  // 1. finalizeGameOver() invocation gated by canShowGameOverCommercialBreak() (>150s & no recent rewarded ad)
+  const hasGameOverCommercial =
+    /finalizeGameOver\(\)\s*\{[\s\S]*?canShowGameOverCommercialBreak\(\)[\s\S]*?portalSDK\.commercialBreak\(\)/.test(
+      engineContent
+    );
   assert(
     hasGameOverCommercial,
-    'finalizeGameOver() triggers portalSDK.commercialBreak() upon game over / death'
+    'finalizeGameOver() triggers portalSDK.commercialBreak() gated by 150s cooldown & recent rewarded ad check'
   );
 
-  // 2. startRun() invocation
-  const hasStartRunCommercial = /public startRun\([\s\S]*?portalSDK\.commercialBreak\(\)/.test(
-    engineContent
+  // 2. startRun() NEVER triggers commercialBreak() (Immediate gameplay start)
+  const startRunBlock = engineContent.slice(
+    engineContent.indexOf('public startRun('),
+    engineContent.indexOf('public start()')
   );
   assert(
-    hasStartRunCommercial,
-    'startRun() triggers portalSDK.commercialBreak() upon starting or restarting a run'
+    !startRunBlock.includes('portalSDK.commercialBreak()'),
+    'startRun() NEVER triggers portalSDK.commercialBreak() so gameplay starts immediately'
   );
 
-  // 3. triggerNextLevelTransition() invocation
-  const hasLevelTransitionCommercial = /triggerNextLevelTransition\(\)\s*\{[\s\S]*?portalSDK\.commercialBreak\(\)/.test(
-    engineContent
+  // 3. triggerNextLevelTransition() NEVER triggers commercialBreak() (Direct 1.2s room transition)
+  const levelTransitionBlock = engineContent.slice(
+    engineContent.indexOf('private triggerNextLevelTransition()'),
+    engineContent.indexOf('public jump(): boolean')
   );
   assert(
-    hasLevelTransitionCommercial,
-    'triggerNextLevelTransition() triggers portalSDK.commercialBreak() on room clear'
+    !levelTransitionBlock.includes('portalSDK.commercialBreak()'),
+    'triggerNextLevelTransition() NEVER triggers portalSDK.commercialBreak() on room clear'
   );
 
   // 4. tick() guard against portalSDK.isAdActive

@@ -45,12 +45,17 @@ declare global {
 }
 
 export class PortalSDKManager {
+  public static readonly COMMERCIAL_COOLDOWN_MS = 150_000; // 150s minimum between ads
+  public static readonly REWARDED_GRACE_MS = 90_000; // Do not show commercial break right after a rewarded ad
+
   private isGameplayActive = false;
   private pendingGameplayStart = false;
   private initialized = false;
   private isPokiAvailable = false;
   private hasAdBlocker = false;
   private adInProgress = false;
+  private lastAdTimestamp = 0;
+  private lastRewardedAdTimestamp = 0;
 
   public get isAdActive(): boolean {
     return this.adInProgress;
@@ -62,6 +67,33 @@ export class PortalSDKManager {
 
   public get pokiAvailable(): boolean {
     return this.isPokiAvailable;
+  }
+
+  /**
+   * Flowchart Rule F: Have more than 150s passed since the last ad?
+   */
+  public hasPassedCommercialCooldown(now = Date.now()): boolean {
+    if (this.lastAdTimestamp <= 0) return true;
+    return now - this.lastAdTimestamp >= PortalSDKManager.COMMERCIAL_COOLDOWN_MS;
+  }
+
+  /**
+   * Flowchart Rule G: Did the player watch a rewarded ad recently?
+   */
+  public hasWatchedRewardedAdRecently(now = Date.now()): boolean {
+    if (this.lastRewardedAdTimestamp <= 0) return false;
+    return now - this.lastRewardedAdTimestamp < PortalSDKManager.REWARDED_GRACE_MS;
+  }
+
+  /**
+   * Flowchart Decision (F -> G -> H / I):
+   * Only allow a Commercial Break on definitive Game Over if >150s have passed since the last ad
+   * AND the player has NOT watched a rewarded ad recently.
+   */
+  public canShowGameOverCommercialBreak(now = Date.now()): boolean {
+    if (!this.hasPassedCommercialCooldown(now)) return false;
+    if (this.hasWatchedRewardedAdRecently(now)) return false;
+    return true;
   }
 
   /**
@@ -325,6 +357,7 @@ export class PortalSDKManager {
     } catch {
       // Ad failed or blocked - proceed immediately without soft-locking
     } finally {
+      this.lastAdTimestamp = Date.now();
       this.adInProgress = false;
       soundManager.resumeAfterAd();
       if (this.pendingGameplayStart) {
@@ -380,6 +413,8 @@ export class PortalSDKManager {
         ]);
 
         if (success) {
+          this.lastRewardedAdTimestamp = Date.now();
+          this.lastAdTimestamp = Date.now();
           return true;
         }
 
@@ -387,7 +422,12 @@ export class PortalSDKManager {
         // `*.poki.com` or when Google IMA is blocked by iframe CSP. Run the Build Mode ad
         // simulation so rewards are 100% guaranteed during development and testing.
         if (isBuildEnv) {
-          return await this.showBuildModeRewardedAdOverlay(onCountdownTick);
+          const simOk = await this.showBuildModeRewardedAdOverlay(onCountdownTick);
+          if (simOk) {
+            this.lastRewardedAdTimestamp = Date.now();
+            this.lastAdTimestamp = Date.now();
+          }
+          return simOk;
         }
 
         return false;
@@ -411,16 +451,32 @@ export class PortalSDKManager {
           }),
           new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 35000)),
         ]);
-        if (crazySuccess) return true;
+        if (crazySuccess) {
+          this.lastRewardedAdTimestamp = Date.now();
+          this.lastAdTimestamp = Date.now();
+          return true;
+        }
         if (isBuildEnv) {
-          return await this.showBuildModeRewardedAdOverlay(onCountdownTick);
+          const simOk = await this.showBuildModeRewardedAdOverlay(onCountdownTick);
+          if (simOk) {
+            this.lastRewardedAdTimestamp = Date.now();
+            this.lastAdTimestamp = Date.now();
+          }
+          return simOk;
         }
         return false;
       }
 
       // 3. Safe Dev / Ad-Blocker / Build Mode Fallback
-      return await this.showBuildModeRewardedAdOverlay(onCountdownTick);
+      const fallbackOk = await this.showBuildModeRewardedAdOverlay(onCountdownTick);
+      if (fallbackOk) {
+        this.lastRewardedAdTimestamp = Date.now();
+        this.lastAdTimestamp = Date.now();
+      }
+      return fallbackOk;
     } catch {
+      this.lastRewardedAdTimestamp = Date.now();
+      this.lastAdTimestamp = Date.now();
       return true;
     } finally {
       this.adInProgress = false;

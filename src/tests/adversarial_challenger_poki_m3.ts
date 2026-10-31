@@ -525,18 +525,31 @@ await runSuite('Suite 4: Commercial Transitions & Audio Suspension', async () =>
   const enginePath = path.join(ROOT_DIR, 'src', 'game', 'gameEngine.ts');
   const engineContent = fs.readFileSync(enginePath, 'utf-8');
 
-  // Verify transition calls in source
-  assert(
-    /startRun\([\s\S]*?portalSDK\.commercialBreak\(\)/.test(engineContent),
-    'startRun() invokes portalSDK.commercialBreak()'
+  // Verify Commercial Break Flowchart Rules in source:
+  // - startRun() NEVER invokes commercialBreak()
+  // - triggerNextLevelTransition() NEVER invokes commercialBreak()
+  // - finalizeGameOver() invokes commercialBreak() gated by canShowGameOverCommercialBreak()
+  const startRunSlice = engineContent.slice(
+    engineContent.indexOf('public startRun('),
+    engineContent.indexOf('public start()')
   );
   assert(
-    /finalizeGameOver\(\)[\s\S]*?portalSDK\.commercialBreak\(\)/.test(engineContent),
-    'finalizeGameOver() invokes portalSDK.commercialBreak()'
+    !startRunSlice.includes('portalSDK.commercialBreak()'),
+    'startRun() NEVER invokes portalSDK.commercialBreak() (Immediate gameplay start)'
   );
   assert(
-    /triggerNextLevelTransition\(\)[\s\S]*?portalSDK\.commercialBreak\(\)/.test(engineContent),
-    'triggerNextLevelTransition() invokes portalSDK.commercialBreak()'
+    /finalizeGameOver\(\)[\s\S]*?canShowGameOverCommercialBreak\(\)[\s\S]*?portalSDK\.commercialBreak\(\)/.test(
+      engineContent
+    ),
+    'finalizeGameOver() invokes portalSDK.commercialBreak() when >150s elapsed and no recent rewarded ad'
+  );
+  const transitionSlice = engineContent.slice(
+    engineContent.indexOf('private triggerNextLevelTransition()'),
+    engineContent.indexOf('public jump(): boolean')
+  );
+  assert(
+    !transitionSlice.includes('portalSDK.commercialBreak()'),
+    'triggerNextLevelTransition() NEVER invokes portalSDK.commercialBreak() (Direct 1.2s transition)'
   );
 
   // Audio suspension verification in audio.ts
