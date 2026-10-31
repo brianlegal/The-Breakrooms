@@ -2079,9 +2079,12 @@ export class GameEngine {
       keysDown.add(e.code);
       updateKeys();
 
-      // Universal Keyboard Action Keys for Chromebook / Flash-style 100% Keyboard Play:
-      // [Space], [Enter], or [J] executes Punch (with hold-to-punch turbo support)
-      if (
+      // Smart Space Bar (PC Pointer Lock = Jump; Chromebook unlocked keyboard mode = Turbo Punch)
+      // while [Enter], [NumpadEnter], and [J] always execute Turbo Punch in any mode
+      if (e.code === 'Space' && this.state.isPointerLocked) {
+        e.preventDefault();
+        this.jump();
+      } else if (
         e.code === 'Space' ||
         e.code === 'Enter' ||
         e.code === 'NumpadEnter' ||
@@ -2212,6 +2215,18 @@ export class GameEngine {
       this.keyboardMoveInput.set(0, 0);
       this.touchMoveInput.set(0, 0);
       this.moveInput.set(0, 0);
+
+      if (
+        this.state.status === 'playing' &&
+        !this.state.isPaused &&
+        !this.state.revivePromptActive &&
+        this.transitionTimer <= 0
+      ) {
+        this.state.isPaused = true;
+        soundManager.setMusicContext('paused', this.state.biome, this.state.isJackpotFloor, true);
+        portalSDK.gameplayStop();
+        this.notifyState();
+      }
     });
 
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());

@@ -105,12 +105,12 @@ const SFX_CATEGORY_MAP: Partial<Record<SfxId, SoundCategory>> = {
 };
 
 const BGM_URLS: Record<MusicTrackId, string> = {
-  lobby: '/audio/bgm/bgm_lobby.wav',
-  level0: '/audio/bgm/bgm_level0.wav',
-  poolrooms: '/audio/bgm/bgm_poolrooms.wav',
-  pipedreams: '/audio/bgm/bgm_pipedreams.wav',
-  hospital: '/audio/bgm/bgm_hospital.wav',
-  jackpot: '/audio/bgm/bgm_jackpot.wav',
+  lobby: './audio/bgm/bgm_lobby.wav',
+  level0: './audio/bgm/bgm_level0.wav',
+  poolrooms: './audio/bgm/bgm_poolrooms.wav',
+  pipedreams: './audio/bgm/bgm_pipedreams.wav',
+  hospital: './audio/bgm/bgm_hospital.wav',
+  jackpot: './audio/bgm/bgm_jackpot.wav',
 };
 
 const ALL_SFX_IDS: SfxId[] = [
@@ -309,7 +309,7 @@ class SoundSynthesizer {
 
     // Preload all crisp SFX buffers immediately (cache-busted so updated WAVs always load fresh)
     for (const id of ALL_SFX_IDS) {
-      fetch(`/audio/sfx/${id}.wav?v=4`, { cache: 'no-cache' })
+      fetch(`./audio/sfx/${id}.wav?v=4`, { cache: 'no-cache' })
         .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error('404'))))
         .then((ab) => this.ctx!.decodeAudioData(ab))
         .then((decoded) => {
