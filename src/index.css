@@ -1,0 +1,473 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Bungee";
+  src: local("Impact"), local("Arial Black"), local("Franklin Gothic Heavy"), local("Haettenschweiler");
+  font-weight: 900;
+  font-style: normal;
+}
+
+:root {
+  --font-arcade: "Impact", "Arial Black", "Franklin Gothic Heavy", "Haettenschweiler", system-ui, -apple-system, sans-serif;
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* Golden / Amber / Bright Orange Cartoon Palette (#FFE043, #FFAA00, #FF7700, deep chocolate #4A0E09 / #3D1308) */
+  --gold-specular: #ffffff;
+  --gold-tint: #fff466;
+  --gold-top: #ffe043;
+  --gold-mid: #ffaa00;
+  --gold-base: #ff7700;
+  --gold-lip: #9e2518;
+  --border-maroon: #4a0e09;
+  --border-walnut: #380905;
+  --border-dark: #3d1308;
+
+  /* Emerald Palette (Play / Confirm / Active) */
+  --green-top: #9ef8b4;
+  --green-mid: #22c55e;
+  --green-base: #0d823a;
+  --green-lip: #116b2d;
+  --green-border: #0b3b19;
+
+  /* Ruby Palette (Close X / Danger / Reset) */
+  --red-top: #ff9488;
+  --red-mid: #e12d24;
+  --red-base: #991313;
+  --red-lip: #7f1212;
+  --red-border: #3d0808;
+
+  /* Royal Berry Purple Palette (Rewarded Ad / Rebirth / Specials) */
+  --purple-top: #f09cff;
+  --purple-mid: #9333ea;
+  --purple-base: #581499;
+  --purple-lip: #581499;
+  --purple-border: #2e0754;
+
+  /* Mahogany & Caramel Backing Palette */
+  --panel-frame-top: #b86314;
+  --panel-frame-mid: #7c3509;
+  --panel-frame-base: #471804;
+  --panel-inset-top: #47130b;
+  --panel-inset-base: #2b0704;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  background-color: #000;
+  font-family: var(--font-sans);
+}
+
+/* Heavy Arcade Display Font Utility (Guaranteed non-serif) */
+.font-arcade,
+.font-\[\'Bungee\'\] {
+  font-family: var(--font-arcade) !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+/* ============================================================================
+   1. ASPECT-RATIO-LOCKED 2D TACTILE CARTOON BUTTONS
+   Depth is generated strictly through multi-layer box-shadow stacks and 2D translateY(4px).
+   ZERO transform-style: preserve-3d or CSS perspective ensures 100% reliable hit-testing!
+   ============================================================================ */
+
+.cartoon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 3.5px solid var(--border-maroon);
+  background-color: var(--gold-mid);
+  background-image:
+    var(--tex-corner-spec),
+    var(--tex-corner-bounce),
+    var(--tex-brush-grain),
+    radial-gradient(circle at 26% 22%, var(--gold-tint) 0%, var(--gold-mid) 52%, var(--gold-base) 100%);
+  background-position:
+    top 2px left 4px,
+    bottom 2px right 5px,
+    0 0,
+    0 0;
+  background-size:
+    52px 38px,
+    46px 30px,
+    128px 128px,
+    100% 100%;
+  background-repeat:
+    no-repeat,
+    no-repeat,
+    repeat,
+    no-repeat;
+  color: #fff9d2;
+  text-shadow: 0 2px 0 var(--border-maroon);
+  box-shadow:
+    inset 0 -4px 0 rgba(168, 52, 12, 0.58),
+    inset 0 2px 3px rgba(255, 255, 235, 0.65),
+    0 5px 0 var(--gold-lip),
+    0 7px 0 var(--border-maroon),
+    0 11px 16px rgba(0, 0, 0, 0.65);
+  transition: transform 0.08s ease, filter 0.1s ease, box-shadow 0.08s ease;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.cartoon-btn:hover:not(:disabled) {
+  filter: brightness(1.06) saturate(1.05);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 -4px 0 rgba(168, 52, 12, 0.58),
+    inset 0 2px 3px rgba(255, 255, 235, 0.65),
+    0 6px 0 var(--gold-lip),
+    0 8.5px 0 var(--border-maroon),
+    0 14px 20px rgba(0, 0, 0, 0.7);
+}
+
+.cartoon-btn:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow:
+    inset 0 -2px 0 rgba(168, 52, 12, 0.55),
+    inset 0 1px 2px rgba(255, 255, 235, 0.4),
+    0 2px 0 var(--gold-lip),
+    0 3.5px 0 var(--border-maroon),
+    0 5px 8px rgba(0, 0, 0, 0.55);
+}
+
+/* Variant: Emerald Green (Play / Active / Confirm) */
+.cartoon-btn-green {
+  border-color: var(--green-border);
+  background-color: var(--green-mid);
+  background-image:
+    var(--tex-corner-spec),
+    var(--tex-corner-bounce),
+    var(--tex-brush-grain),
+    radial-gradient(circle at 26% 22%, var(--green-top) 0%, var(--green-mid) 54%, var(--green-base) 100%);
+  color: #ffffff;
+  text-shadow: 0 2px 0 var(--green-border);
+  box-shadow:
+    inset 0 -4px 0 rgba(6, 78, 40, 0.58),
+    inset 0 2px 3px rgba(255, 255, 255, 0.65),
+    0 5px 0 var(--green-lip),
+    0 7px 0 var(--green-border),
+    0 11px 16px rgba(0, 0, 0, 0.65);
+}
+.cartoon-btn-green:hover:not(:disabled) {
+  box-shadow:
+    inset 0 -4px 0 rgba(6, 78, 40, 0.58),
+    inset 0 2px 3px rgba(255, 255, 255, 0.65),
+    0 6px 0 var(--green-lip),
+    0 8.5px 0 var(--green-border),
+    0 14px 20px rgba(0, 0, 0, 0.7);
+}
+.cartoon-btn-green:active:not(:disabled) {
+  box-shadow:
+    inset 0 -2px 0 rgba(6, 78, 40, 0.55),
+    inset 0 1px 2px rgba(255, 255, 255, 0.4),
+    0 2px 0 var(--green-lip),
+    0 3.5px 0 var(--green-border),
+    0 5px 8px rgba(0, 0, 0, 0.55);
+}
+
+/* Variant: Ruby Red (Close X / Reset / Danger) */
+.cartoon-btn-red {
+  border-color: var(--red-border);
+  background-color: var(--red-mid);
+  background-image:
+    var(--tex-corner-spec),
+    var(--tex-corner-bounce),
+    var(--tex-brush-grain),
+    radial-gradient(circle at 26% 22%, var(--red-top) 0%, var(--red-mid) 54%, var(--red-base) 100%);
+  color: #fff6d6;
+  text-shadow: 0 2px 0 var(--red-border);
+  box-shadow:
+    inset 0 -4px 0 rgba(95, 10, 10, 0.65),
+    inset 0 2px 3px rgba(255, 220, 220, 0.6),
+    0 5px 0 var(--red-lip),
+    0 7px 0 var(--red-border),
+    0 11px 16px rgba(0, 0, 0, 0.65);
+}
+.cartoon-btn-red:hover:not(:disabled) {
+  box-shadow:
+    inset 0 -4px 0 rgba(95, 10, 10, 0.65),
+    inset 0 2px 3px rgba(255, 220, 220, 0.6),
+    0 6px 0 var(--red-lip),
+    0 8.5px 0 var(--red-border),
+    0 14px 20px rgba(0, 0, 0, 0.7);
+}
+.cartoon-btn-red:active:not(:disabled) {
+  box-shadow:
+    inset 0 -2px 0 rgba(95, 10, 10, 0.65),
+    inset 0 1px 2px rgba(255, 220, 220, 0.4),
+    0 2px 0 var(--red-lip),
+    0 3.5px 0 var(--red-border),
+    0 5px 8px rgba(0, 0, 0, 0.55);
+}
+
+/* Variant: Royal Berry Purple (Rewarded Ad / Rebirth / Specials) */
+.cartoon-btn-purple {
+  border-color: var(--purple-border);
+  background-color: var(--purple-mid);
+  background-image:
+    var(--tex-corner-spec),
+    var(--tex-corner-bounce),
+    var(--tex-brush-grain),
+    radial-gradient(circle at 26% 22%, var(--purple-top) 0%, var(--purple-mid) 54%, var(--purple-base) 100%);
+  color: #fff36b;
+  text-shadow: 0 2px 0 var(--purple-border);
+  box-shadow:
+    inset 0 -4px 0 rgba(59, 7, 100, 0.65),
+    inset 0 2px 3px rgba(250, 220, 255, 0.6),
+    0 5px 0 var(--purple-lip),
+    0 7px 0 var(--purple-border),
+    0 11px 16px rgba(0, 0, 0, 0.65);
+}
+.cartoon-btn-purple:hover:not(:disabled) {
+  box-shadow:
+    inset 0 -4px 0 rgba(59, 7, 100, 0.65),
+    inset 0 2px 3px rgba(250, 220, 255, 0.6),
+    0 6px 0 var(--purple-lip),
+    0 8.5px 0 var(--purple-border),
+    0 14px 20px rgba(0, 0, 0, 0.7);
+}
+.cartoon-btn-purple:active:not(:disabled) {
+  box-shadow:
+    inset 0 -2px 0 rgba(59, 7, 100, 0.65),
+    inset 0 1px 2px rgba(250, 220, 255, 0.4),
+    0 2px 0 var(--purple-lip),
+    0 3.5px 0 var(--purple-border),
+    0 5px 8px rgba(0, 0, 0, 0.55);
+}
+
+/* Variant: Disabled Slate */
+.cartoon-btn-disabled {
+  border-color: #18181b;
+  background-color: #52525b;
+  background-image:
+    var(--tex-brush-grain),
+    radial-gradient(circle at 26% 22%, #71717a 0%, #52525b 55%, #27272a 100%);
+  background-position: 0 0, 0 0;
+  background-size: 128px 128px, 100% 100%;
+  background-repeat: repeat, no-repeat;
+  color: #d4d4d8;
+  text-shadow: 0 2px 0 #18181b;
+  box-shadow:
+    inset 0 -3px 0 rgba(24, 24, 27, 0.65),
+    0 4px 0 #27272a,
+    0 6px 0 #18181b;
+  cursor: not-allowed;
+}
+
+/* ============================================================================
+   2. WARM GROUNDED CARTOON CARDS & WINDOWS (Fixed Aspect Ratio Corner Reflections)
+   ============================================================================ */
+
+/* Grounded Rich Burnished Amber-Bronze Card (Upgrade Cards, Coin Counter, HUD Bar) */
+.cartoon-card {
+  border-radius: 24px;
+  border: 3.5px solid #4a0e09;
+  background-color: #9c4c0e;
+  background-image:
+    var(--tex-corner-spec),
+    var(--tex-corner-bounce),
+    var(--tex-brush-grain),
+    radial-gradient(circle at 24% 20%, #d9861c 0%, #9c4c0e 58%, #612407 100%);
+  background-position:
+    top 3px left 5px,
+    bottom 3px right 6px,
+    0 0,
+    0 0;
+  background-size:
+    56px 40px,
+    48px 32px,
+    128px 128px,
+    100% 100%;
+  background-repeat:
+    no-repeat,
+    no-repeat,
+    repeat,
+    no-repeat;
+  color: #fff5c0;
+  box-shadow:
+    inset 0 2px 2px rgba(255, 232, 160, 0.45),
+    inset 0 -5px 0 rgba(58, 16, 5, 0.65),
+    0 5px 0 #6e1a0f,
+    0 7.5px 0 #380905,
+    0 12px 20px rgba(0, 0, 0, 0.65);
+}
+
+/* Deep Warm Mahogany-Crimson Inner Sub-Card (Rebirth Info Rows, Records Tiles, Budget Cards) */
+.cartoon-card-cream {
+  border-radius: 20px;
+  border: 3px solid #380905;
+  background-color: #47130b;
+  background-image:
+    var(--tex-brush-grain),
+    radial-gradient(circle at 25% 20%, #692114 0%, #47130b 58%, #2b0905 100%);
+  background-position: 0 0, 0 0;
+  background-size: 128px 128px, 100% 100%;
+  background-repeat: repeat, no-repeat;
+  color: #fff3a8;
+  box-shadow:
+    inset 0 3px 6px rgba(20, 3, 1, 0.65),
+    inset 0 -2px 0 rgba(255, 195, 110, 0.22),
+    0 3px 0 #8f3d10,
+    0 5px 10px rgba(0, 0, 0, 0.45);
+}
+
+/* Emerald Cartoon Card (Completed Requirement / Equipped Slot / Bonus) */
+.cartoon-card-green {
+  border-radius: 20px;
+  border: 3px solid #0b3b19;
+  background-color: #22c55e;
+  background-image:
+    var(--tex-corner-spec),
+    var(--tex-brush-grain),
+    radial-gradient(circle at 26% 22%, #9ef8b4 0%, #22c55e 56%, #0d823a 100%);
+  background-position: top 2px left 4px, 0 0, 0 0;
+  background-size: 46px 34px, 128px 128px, 100% 100%;
+  background-repeat: no-repeat, repeat, no-repeat;
+  color: #072a11;
+  box-shadow:
+    inset 0 2px 2px rgba(255, 255, 255, 0.55),
+    inset 0 -4px 0 rgba(6, 78, 40, 0.55),
+    0 4px 0 #0b3b19,
+    0 7px 12px rgba(0, 0, 0, 0.45);
+}
+
+/* Ruby Cartoon Card (Unmet Room Requirement / Alert / Danger) */
+.cartoon-card-red {
+  border-radius: 20px;
+  border: 3px solid #3d0808;
+  background-color: #e12d24;
+  background-image:
+    var(--tex-corner-spec),
+    var(--tex-brush-grain),
+    radial-gradient(circle at 26% 22%, #ff9488 0%, #e12d24 56%, #991313 100%);
+  background-position: top 2px left 4px, 0 0, 0 0;
+  background-size: 46px 34px, 128px 128px, 100% 100%;
+  background-repeat: no-repeat, repeat, no-repeat;
+  color: #ffffff;
+  box-shadow:
+    inset 0 2px 2px rgba(255, 220, 220, 0.45),
+    inset 0 -4px 0 rgba(95, 10, 10, 0.65),
+    0 4px 0 #3d0808,
+    0 7px 12px rgba(0, 0, 0, 0.45);
+}
+
+/* Large Plump Cartoon Window (Pop-up Modal Frame in Rich Toasted Caramel-Bronze) */
+.cartoon-window {
+  border-radius: 30px;
+  border: 4px solid #380905;
+  background-color: #7c3509;
+  background-image:
+    var(--tex-corner-spec),
+    var(--tex-corner-bounce),
+    var(--tex-brush-grain),
+    radial-gradient(circle at 24% 18%, #b86314 0%, #7c3509 58%, #471804 100%);
+  background-position:
+    top 5px left 8px,
+    bottom 5px right 8px,
+    0 0,
+    0 0;
+  background-size:
+    64px 48px,
+    56px 36px,
+    128px 128px,
+    100% 100%;
+  background-repeat:
+    no-repeat,
+    no-repeat,
+    repeat,
+    no-repeat;
+  color: #fff3b0;
+  box-shadow:
+    inset 0 3px 3px rgba(255, 228, 145, 0.48),
+    inset 0 -7px 0 rgba(48, 12, 4, 0.72),
+    0 7px 0 #59150b,
+    0 10px 0 #2e0603,
+    0 20px 36px rgba(0, 0, 0, 0.8);
+}
+
+/* Recessed Dark Mahogany Pill (Used inside Cartoon Cards for high-contrast numbers) */
+.cartoon-pill-inset {
+  border-radius: 14px;
+  border: 2.5px solid #2b0704;
+  background: linear-gradient(180deg, #3b0d07 0%, #59160d 100%);
+  color: #fff36b;
+  box-shadow:
+    inset 0 3px 5px rgba(0, 0, 0, 0.65),
+    0 2px 0 rgba(255, 215, 115, 0.38);
+}
+
+/* 3. CARTOON BADGES, RIBBONS & ROULETTE WHEEL */
+.cartoon-badge-gold {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  border: 2.5px solid var(--border-maroon);
+  background: linear-gradient(180deg, #ffe043 0%, #ffaa00 55%, #e65100 100%);
+  color: #380905;
+  font-family: var(--font-arcade);
+  font-size: 0.75rem;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+  box-shadow:
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 0 rgba(158, 37, 24, 0.7),
+    0 3px 0 var(--border-maroon),
+    0 5px 8px rgba(0, 0, 0, 0.45);
+}
+
+.cartoon-ribbon {
+  border: 3.5px solid var(--border-walnut);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffe043 0%, #f59e0b 50%, #d97706 100%);
+  color: #4a0e09;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+  box-shadow:
+    inset 0 2px 2px rgba(255, 255, 255, 0.7),
+    inset 0 -3px 0 rgba(120, 53, 15, 0.6),
+    0 4px 0 var(--border-walnut),
+    0 8px 16px rgba(0, 0, 0, 0.55);
+}
+
+/* Celebratory Jackpot Banner & Victory Aura */
+.cartoon-jackpot-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.65rem 1.25rem;
+  border-radius: 18px;
+  border: 3.5px solid var(--border-walnut);
+  background: linear-gradient(180deg, #ffe043 0%, #ffaa00 48%, #d97706 100%);
+  color: #380905;
+  font-family: var(--font-arcade);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.65);
+  box-shadow:
+    inset 0 2px 2px rgba(255, 255, 255, 0.75),
+    inset 0 -3px 0 rgba(140, 40, 10, 0.7),
+    0 4px 0 var(--border-walnut),
+    0 8px 18px rgba(0, 0, 0, 0.5);
+}
+
+.cartoon-jackpot-glow {
+  position: relative;
+  border-radius: 20px;
+  border: 3.5px solid #22c55e;
+  background: linear-gradient(180deg, #064e3b 0%, #065f46 50%, #022c22 100%);
+  box-shadow:
+    0 0 24px rgba(34, 197, 94, 0.45),
+    inset 0 2px 3px rgba(255, 255, 255, 0.25),
+    0 5px 0 #022c22,
+    0 10px 20px rgba(0, 0, 0, 0.6);
+}
+

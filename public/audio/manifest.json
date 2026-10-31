@@ -1,0 +1,28 @@
+{
+  "aesthetic": "Liminal Arcade Smashcore",
+  "version": "2.1.0",
+  "bgm": {
+    "lobby": { "file": "/audio/bgm/bgm_lobby.wav", "generator": "Google DeepMind Lyria RealTime (models/lyria-realtime-exp)", "bpm": 106, "loop": true },
+    "level0": { "file": "/audio/bgm/bgm_level0.wav", "generator": "Google DeepMind Lyria RealTime (models/lyria-realtime-exp)", "bpm": 128, "loop": true },
+    "poolrooms": { "file": "/audio/bgm/bgm_poolrooms.wav", "generator": "Google DeepMind Lyria RealTime (models/lyria-realtime-exp)", "bpm": 136, "loop": true },
+    "pipedreams": { "file": "/audio/bgm/bgm_pipedreams.wav", "generator": "Google DeepMind Lyria RealTime (models/lyria-realtime-exp)", "bpm": 142, "loop": true },
+    "hospital": { "file": "/audio/bgm/bgm_hospital.wav", "generator": "Google DeepMind Lyria RealTime (models/lyria-realtime-exp)", "bpm": 154, "loop": true },
+    "jackpot": { "file": "/audio/bgm/bgm_jackpot.wav", "generator": "Google DeepMind Lyria RealTime (models/lyria-realtime-exp)", "bpm": 146, "loop": true }
+  },
+  "stingers_and_voices": {
+    "stinger_room_clear": "/audio/sfx/stinger_room_clear.wav",
+    "stinger_boss_alert": "/audio/sfx/stinger_boss_alert.wav",
+    "stinger_jackpot_win": "/audio/sfx/stinger_jackpot_win.wav",
+    "stinger_game_over": "/audio/sfx/stinger_game_over.wav",
+    "vox_super_smash": "/audio/sfx/vox_super_smash.wav",
+    "vox_jackpot": "/audio/sfx/vox_jackpot.wav",
+    "vox_boss_ko": "/audio/sfx/vox_boss_ko.wav",
+    "vox_rebirth": "/audio/sfx/vox_rebirth.wav"
+  },
+  "new_sfx": {
+    "sfx_punch_impact": "/audio/sfx/sfx_punch_impact.wav",
+    "sfx_concrete_hit": "/audio/sfx/sfx_concrete_hit.wav",
+    "sfx_concrete_break": "/audio/sfx/sfx_concrete_break.wav"
+  },
+  "sfx_count": 33
+}
