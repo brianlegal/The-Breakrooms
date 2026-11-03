@@ -615,7 +615,9 @@ export class GameEngine {
       }
       this.notifyState();
     } else {
-      this.declineReviveOffer();
+      soundManager.playUiError();
+      this.state.revivePromptCountdown = Math.max(this.state.revivePromptCountdown, 5.0);
+      this.notifyState();
     }
   }
 
@@ -901,6 +903,22 @@ export class GameEngine {
     this.comicEffects.triggerPunchShake(0.045, 12);
     this.notifyState();
     return true;
+  }
+
+  /**
+   * Universal Smart Action (Tap / Click anywhere on screen during gameplay):
+   * 1. If holding a demolition ball -> Launches the ball ('throw')
+   * 2. Else if Rage is 100% full -> Unleashes Super Smash ('super')
+   * 3. Else -> Executes 4-hit boxing combo punch ('combo')
+   */
+  public triggerSmartAction(): boolean {
+    if (this.ballManager.heldBall || this.state.hasBall) {
+      return this.punch('throw');
+    }
+    if (this.state.isRageFull) {
+      return this.punch('super');
+    }
+    return this.punch('combo');
   }
 
   /**
@@ -1364,15 +1382,15 @@ export class GameEngine {
       this.state.elapsedTime += delta;
       this.hudSyncAccumulator += delta;
 
-      // Hold Left Mouse, Universal Keyboard Action (Space / Enter / J), or Touch Punch Button for Continuous Turbo-Combo!
+      // Hold Left Mouse, Universal Keyboard Action (Space / Enter / J), or Touch Anywhere for Continuous Smart Action (Throw Ball / Super Smash / Turbo-Combo)!
       if (this.isLeftMouseDown && this.transitionTimer <= 0 && this.shockParalysisTimer <= 0) {
-        this.punch('combo');
+        this.triggerSmartAction();
       } else if (
         (this.isKeyPunchHeld || this.isTouchPunchHeld) &&
         this.transitionTimer <= 0 &&
         this.shockParalysisTimer <= 0
       ) {
-        this.punch('combo');
+        this.triggerSmartAction();
       }
 
       // Handle short Level-Up Transition (Juice #10)
@@ -1391,6 +1409,10 @@ export class GameEngine {
 
           if (isRecordJackpot) {
             this.hasTriggeredRecordJackpotInRun = true;
+            this.isLeftMouseDown = false;
+            this.isKeyPunchHeld = false;
+            this.isTouchPunchHeld = false;
+            this.setMoveInput(0, 0);
             const rebirthTimerBonus = progressionManager.getRebirthTimerBonus();
             const plusTimerBonus = progressionManager.hasBudgetEquipped('plus_timer') ? 5.0 : 0;
             const jackpotCfg = ProgressionManager.getLevelConfig(
@@ -1400,10 +1422,19 @@ export class GameEngine {
               true
             );
             this.state.timeRemaining = jackpotCfg.initialTime;
+            portalSDK
+              .commercialBreak()
+              .catch(() => {})
+              .finally(() => {
+                this.state.timeRemaining = jackpotCfg.initialTime;
+                this.loadLevelRoom(nextLvl, false, true);
+                portalSDK.gameplayStart();
+                this.notifyState();
+              });
+          } else {
+            this.loadLevelRoom(nextLvl, false, false);
+            this.notifyState();
           }
-
-          this.loadLevelRoom(nextLvl, false, isRecordJackpot);
-          this.notifyState();
         }
       } else if (this.hasInteractedInRun) {
         this.state.timeRemaining -= delta;
@@ -1508,6 +1539,19 @@ export class GameEngine {
       if (this.keyboardTurnInput !== 0 && this.shockParalysisTimer <= 0) {
         const keyTurnSpeed = 2.45; // rad/s (~140 deg/s smooth arcade turn)
         this.rotateCamera(this.keyboardTurnInput * keyTurnSpeed * delta, 0);
+      }
+
+      // Mobile / Tablet One-Handed Analog Joystick Camera Steering:
+      // Pointing the analog stick steers the camera smoothly toward the stick direction
+      if (this.touchMoveInput.lengthSq() > 0.004 && this.shockParalysisTimer <= 0) {
+        const steerX = this.touchMoveInput.x;
+        if (Math.abs(steerX) > 0.03) {
+          const steerCurve = Math.sign(steerX) * Math.pow(Math.abs(steerX), 1.12);
+          const joystickTurnSpeed = 2.85; // rad/s (~163 deg/s smooth cornering)
+          this.rotateCamera(steerCurve * joystickTurnSpeed * delta, 0);
+        }
+        // Automatically keep vertical aim leveled at eye height while steering with the stick
+        this.cameraRotation.x = THREE.MathUtils.damp(this.cameraRotation.x, 0, 5.5, delta);
       }
 
       this.updatePlayerMovement(delta);
@@ -1980,8 +2024,23 @@ export class GameEngine {
       this.moveInput.set(0, 0);
       return;
     }
-    const combinedX = this.keyboardMoveInput.x + this.touchMoveInput.x;
-    const combinedY = this.keyboardMoveInput.y + this.touchMoveInput.y;
+    // For touch analog joystick: horizontal deflection steers the camera, so pushing the stick
+    // forward/diagonally/sideways drives forward movement along the aimed camera direction!
+    let touchX = 0;
+    let touchY = 0;
+    const touchMag = Math.min(1, this.touchMoveInput.length());
+    if (touchMag > 0.04) {
+      if (this.touchMoveInput.y >= -0.3) {
+        touchY = touchMag;
+        touchX = this.touchMoveInput.x * 0.22;
+      } else {
+        touchY = this.touchMoveInput.y;
+        touchX = this.touchMoveInput.x * 0.25;
+      }
+    }
+
+    const combinedX = this.keyboardMoveInput.x + touchX;
+    const combinedY = this.keyboardMoveInput.y + touchY;
     this.moveInput.set(combinedX, combinedY);
     if (this.moveInput.lengthSq() > 1) {
       this.moveInput.normalize();
@@ -2189,9 +2248,9 @@ export class GameEngine {
         return;
       soundManager.init();
       if (e.button === 0) {
-        // Hold Left Click enables Continuous Auto-Combo Turbo Punch!
+        // Hold Left Click / Screen Tap enables Continuous Smart Action (Throw Ball / Super Smash / Turbo Punch)!
         this.isLeftMouseDown = true;
-        this.punch('combo');
+        this.triggerSmartAction();
       } else if (e.button === 2) {
         if (this.state.isRageFull && !this.ballManager.heldBall) {
           this.punch('super');

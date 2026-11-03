@@ -7,10 +7,9 @@ export type Locale = 'pt' | 'en';
 
 const detectDefaultLocale = (): Locale => {
   try {
-    const saved = localStorage.getItem('smash_backrooms_lang');
+    const saved = localStorage.getItem('smash_backrooms_lang_v2');
     if (saved === 'pt' || saved === 'en') return saved;
-    const nav = (navigator.language || 'en').toLowerCase();
-    return nav.startsWith('pt') ? 'pt' : 'en';
+    return 'en';
   } catch {
     return 'en';
   }
@@ -26,7 +25,7 @@ export function getLocale(): Locale {
 export function setLocale(locale: Locale) {
   currentLocale = locale;
   try {
-    localStorage.setItem('smash_backrooms_lang', locale);
+    localStorage.setItem('smash_backrooms_lang_v2', locale);
   } catch {
     // ignore storage errors
   }

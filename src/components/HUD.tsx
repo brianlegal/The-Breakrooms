@@ -82,9 +82,19 @@ const MemoizedSpeedWedges = React.memo<{ isDashing: boolean }>(({ isDashing }) =
 
 export const HUD: React.FC<HUDProps> = ({ engine, state, onOpenMenu }) => {
   const [, setSoundTick] = useState(0);
+  const [uiScale, setUiScale] = useState(() =>
+    typeof window !== 'undefined'
+      ? Math.min(1, window.innerWidth / 1240, window.innerHeight / 680)
+      : 1
+  );
 
   useEffect(() => {
     initCartoonUiTextures();
+    const handleResize = () => {
+      setUiScale(Math.min(1, window.innerWidth / 1240, window.innerHeight / 680));
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   if (state.status !== 'playing') return null;
@@ -186,7 +196,10 @@ export const HUD: React.FC<HUDProps> = ({ engine, state, onOpenMenu }) => {
       )}
 
       {/* TOP-CENTER TEXTURED CARTOON HUD CARD: PERCENTAGE OF WALLS BROKEN + COUNTDOWN TIMER */}
-      <div className="pointer-events-auto mx-auto flex flex-col items-center">
+      <div
+        className="pointer-events-auto mx-auto flex flex-col items-center"
+        style={{ transform: `scale(${uiScale})`, transformOrigin: 'top center' }}
+      >
         <div className="cartoon-card flex items-center gap-3 px-4 py-2.5 min-w-[330px] sm:min-w-[560px]">
           {/* Level Badge */}
           <div className="cartoon-card-cream flex flex-col items-center justify-center px-3 py-1">
@@ -385,7 +398,10 @@ export const HUD: React.FC<HUDProps> = ({ engine, state, onOpenMenu }) => {
       {/* JUICE #10: SHORT LEVEL-UP ROOM TRANSITION BANNER */}
       {state.levelTransition && state.levelTransition.active && (
         <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-amber-400/20 backdrop-blur-[2px]">
-          <div className="cartoon-window animate-bounce px-8 py-6 text-center">
+          <div
+            className="cartoon-window animate-bounce px-8 py-6 text-center"
+            style={{ transform: `scale(${uiScale})`, transformOrigin: 'center center' }}
+          >
             <div className="cartoon-card-cream inline-block px-3 py-0.5 font-arcade text-xs text-[#fff36b]">
               {strings.roomLabel} {state.levelTransition.clearedLevel} • {strings.roomClearedBadge}
             </div>
@@ -407,7 +423,10 @@ export const HUD: React.FC<HUDProps> = ({ engine, state, onOpenMenu }) => {
       {/* DEATH SCREEN MODAL: CHOOSE (+12s REVIVE AD) OR (ACCEPT DEFEAT + 2X COINS AD) */}
       {state.revivePromptActive && (
         <div className="pointer-events-auto absolute inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-          <div className="cartoon-window w-full max-w-md p-6 text-center">
+          <div
+            className="cartoon-window w-full max-w-md p-6 text-center"
+            style={{ transform: `scale(${uiScale})`, transformOrigin: 'center center' }}
+          >
             <div className="cartoon-card-red mx-auto inline-flex items-center gap-2 px-3.5 py-1 font-arcade text-xs text-white animate-pulse">
               <CartoonTimerIcon className="h-4 w-4" />
               <span>{Math.ceil(state.revivePromptCountdown)}s</span>
@@ -482,7 +501,10 @@ export const HUD: React.FC<HUDProps> = ({ engine, state, onOpenMenu }) => {
       {/* AUTO-PAUSE MODAL WHEN POINTER LOCK IS RELEASED (ESC) */}
       {state.isPaused && !state.levelTransition && !state.revivePromptActive && (
         <div className="pointer-events-auto absolute inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-xs">
-          <div className="cartoon-window flex flex-col items-center p-7 text-center">
+          <div
+            className="cartoon-window flex flex-col items-center p-7 text-center"
+            style={{ transform: `scale(${uiScale})`, transformOrigin: 'center center' }}
+          >
             <div className="flex items-center gap-2.5 font-arcade text-2xl sm:text-3xl text-[#fff36b] drop-shadow-[0_2px_0_#380905]">
               <CartoonPauseIcon className="h-7 w-7 text-[#fff36b]" />
               <span>{strings.pausedTitle}</span>

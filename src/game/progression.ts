@@ -254,12 +254,35 @@ export class ProgressionManager {
     this.profile = this.load();
   }
 
+  private isCrazyDataReady(): boolean {
+    if (typeof window === 'undefined' || !window.CrazyGames?.SDK) return false;
+    if (window.__CRAZY_SDK_INITIALIZED__ !== true) return false;
+    try {
+      const env = window.CrazyGames.SDK.environment;
+      if (env === 'uninitialized' || env === 'disabled') return false;
+      return Boolean(window.CrazyGames.SDK.data);
+    } catch {
+      return false;
+    }
+  }
+
   private load(): PlayerProfile {
     try {
-      const raw =
-        localStorage.getItem(STORAGE_KEY) ||
-        localStorage.getItem('smash_backrooms_profile_v4') ||
-        localStorage.getItem('smash_backrooms_profile_v3');
+      let raw: string | null = null;
+      try {
+        if (this.isCrazyDataReady() && window.CrazyGames?.SDK?.data?.getItem) {
+          raw = window.CrazyGames.SDK.data.getItem(STORAGE_KEY);
+        }
+      } catch {
+        // Ignore CrazyGames data read errors before SDK init
+      }
+
+      if (!raw) {
+        raw =
+          localStorage.getItem(STORAGE_KEY) ||
+          localStorage.getItem('smash_backrooms_profile_v4') ||
+          localStorage.getItem('smash_backrooms_profile_v3');
+      }
       if (!raw) return JSON.parse(JSON.stringify(DEFAULT_PROFILE));
       const parsed = JSON.parse(raw);
       const oldUpg = parsed.upgrades || {};
@@ -299,10 +322,18 @@ export class ProgressionManager {
   }
 
   public save() {
+    const serialized = JSON.stringify(this.profile);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.profile));
+      localStorage.setItem(STORAGE_KEY, serialized);
     } catch {
       // Ignore storage quota errors
+    }
+    try {
+      if (this.isCrazyDataReady() && window.CrazyGames?.SDK?.data?.setItem) {
+        window.CrazyGames.SDK.data.setItem(STORAGE_KEY, serialized);
+      }
+    } catch {
+      // Ignore CrazyGames cloud data write errors if SDK not yet initialized
     }
   }
 
@@ -549,6 +580,13 @@ export class ProgressionManager {
       localStorage.removeItem('smash_backrooms_profile_v4');
       localStorage.removeItem('smash_backrooms_profile_v3');
       localStorage.removeItem('smash_backrooms_profile_v2');
+    } catch {
+      // ignore
+    }
+    try {
+      if (this.isCrazyDataReady() && window.CrazyGames?.SDK?.data?.removeItem) {
+        window.CrazyGames.SDK.data.removeItem(STORAGE_KEY);
+      }
     } catch {
       // ignore
     }

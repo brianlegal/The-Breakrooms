@@ -45,39 +45,39 @@ async function runAsyncSuite(name, fn) {
 }
 
 // -----------------------------------------------------------------------------
-// SUITE 1: Poki SDK v2 Script Tag in index.html
+// SUITE 1: CrazyGames SDK v3 Script Tag in index.html
 // -----------------------------------------------------------------------------
-await runAsyncSuite('Suite 1: Poki SDK v2 Script Tag in index.html', async () => {
+await runAsyncSuite('Suite 1: CrazyGames SDK v3 Script Tag in index.html', async () => {
   const indexPath = path.join(ROOT_DIR, 'index.html');
   assert(fs.existsSync(indexPath), 'index.html exists');
 
   const indexContent = fs.readFileSync(indexPath, 'utf-8');
 
-  const hasPokiScript = indexContent.includes(
-    'src="https://game-cdn.poki.com/scripts/v2/poki-sdk.js"'
+  const hasCrazyScript = indexContent.includes(
+    'src="https://sdk.crazygames.com/crazygames-sdk-v3.js"'
   );
-  assert(hasPokiScript, 'index.html includes exact Poki SDK v2 script url');
+  assert(hasCrazyScript, 'index.html includes exact CrazyGames SDK v3 script url');
 
   const headStart = indexContent.indexOf('<head>');
   const headEnd = indexContent.indexOf('</head>');
-  const pokiPos = indexContent.indexOf('https://game-cdn.poki.com/scripts/v2/poki-sdk.js');
+  const crazyPos = indexContent.indexOf('https://sdk.crazygames.com/crazygames-sdk-v3.js');
 
   assert(
-    headStart !== -1 && headEnd !== -1 && pokiPos > headStart && pokiPos < headEnd,
-    'Poki SDK v2 script is positioned strictly inside <head>...</head>'
+    headStart !== -1 && headEnd !== -1 && crazyPos > headStart && crazyPos < headEnd,
+    'CrazyGames SDK v3 script is positioned strictly inside <head>...</head>'
   );
 
   const mainScriptPos = indexContent.indexOf('/src/main.tsx');
   assert(
-    mainScriptPos !== -1 && pokiPos < mainScriptPos,
-    'Poki SDK v2 loads in <head> prior to application module script in <body>'
+    mainScriptPos !== -1 && crazyPos < mainScriptPos,
+    'CrazyGames SDK v3 loads in <head> prior to application module script in <body>'
   );
 });
 
 // -----------------------------------------------------------------------------
-// SUITE 2: Poki SDK Bridge Architecture in src/game/portalSdk.ts
+// SUITE 2: CrazyGames SDK v3 Bridge Architecture in src/game/portalSdk.ts
 // -----------------------------------------------------------------------------
-await runAsyncSuite('Suite 2: Poki SDK Bridge Architecture in portalSdk.ts', async () => {
+await runAsyncSuite('Suite 2: CrazyGames SDK v3 Bridge Architecture in portalSdk.ts', async () => {
   const portalSdkPath = path.join(ROOT_DIR, 'src', 'game', 'portalSdk.ts');
   assert(fs.existsSync(portalSdkPath), 'src/game/portalSdk.ts exists');
 
@@ -85,28 +85,32 @@ await runAsyncSuite('Suite 2: Poki SDK Bridge Architecture in portalSdk.ts', asy
 
   // 1. Interface definition
   assert(
-    portalContent.includes('export interface PokiSDKInterface'),
-    'portalSdk.ts exports PokiSDKInterface'
+    portalContent.includes('export interface CrazyGamesSDKInterface'),
+    'portalSdk.ts exports CrazyGamesSDKInterface'
   );
   assert(
-    portalContent.includes('commercialBreak?: (onStart?: () => void) => Promise<void>;'),
-    'PokiSDKInterface defines commercialBreak'
+    portalContent.includes("type: 'midgame' | 'rewarded'"),
+    'CrazyGamesSDKInterface defines ad.requestAd for midgame and rewarded'
   );
   assert(
-    portalContent.includes('rewardedBreak?: (onStart?: () => void) => Promise<boolean>;'),
-    'PokiSDKInterface defines rewardedBreak'
+    portalContent.includes('loadingStart?: () => void;'),
+    'CrazyGamesSDKInterface defines game.loadingStart'
+  );
+  assert(
+    portalContent.includes('loadingStop?: () => void;'),
+    'CrazyGamesSDKInterface defines game.loadingStop'
   );
   assert(
     portalContent.includes('gameplayStart?: () => void;'),
-    'PokiSDKInterface defines gameplayStart'
+    'CrazyGamesSDKInterface defines game.gameplayStart'
   );
   assert(
     portalContent.includes('gameplayStop?: () => void;'),
-    'PokiSDKInterface defines gameplayStop'
+    'CrazyGamesSDKInterface defines game.gameplayStop'
   );
   assert(
-    portalContent.includes('happyTime?: (magnitude?: number) => void;'),
-    'PokiSDKInterface defines happyTime with magnitude'
+    portalContent.includes('happytime?: () => void;'),
+    'CrazyGamesSDKInterface defines game.happytime'
   );
 
   // 2. Class implementation

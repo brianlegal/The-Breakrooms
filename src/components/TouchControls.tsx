@@ -47,6 +47,8 @@ export const TouchControls: React.FC<TouchControlsProps> = ({ engine, canSuperSm
     setJoystickActive(true);
     setStickPos({ x: 0, y: 0 });
     engine?.setMoveInput(0, 0);
+    // Tapping anywhere (including the joystick zone) immediately executes Smart Action (Punch / Throw Ball / Super Smash)
+    engine?.triggerSmartAction();
   };
 
   const handleJoystickTouchMove = (e: React.TouchEvent) => {
@@ -227,7 +229,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({ engine, canSuperSm
               e.stopPropagation();
               soundManager.init();
               engine?.setTouchPunchHeld(true);
-              engine?.punch('combo');
+              engine?.triggerSmartAction();
             }}
             onTouchEnd={(e) => {
               e.stopPropagation();
@@ -237,7 +239,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({ engine, canSuperSm
               e.stopPropagation();
               engine?.setTouchPunchHeld(false);
             }}
-            onClick={() => engine?.punch('combo')}
+            onClick={() => engine?.triggerSmartAction()}
             className="cartoon-btn cartoon-btn-red flex h-16 w-18 flex-col items-center justify-center gap-1 font-arcade text-xs"
           >
             {hasBall ? (

@@ -77,14 +77,16 @@ await runSuite('Suite 1: Ad Blocker, Missing SDK & Rejection Robustness', async 
   await noPokiManager.commercialBreak();
   assert(!noPokiManager.isAdActive, 'Missing PokiSDK: commercialBreak completes without hanging');
 
-  // Test 1.3: Ad Blocker rejecting PokiSDK.init()
+  // Test 1.3: Ad Blocker rejecting CrazyGames.SDK.init()
   let unhandledRejectionCaught = false;
   const onUnhandled = () => { unhandledRejectionCaught = true; };
   process.on('unhandledRejection', onUnhandled);
 
   (global as any).window = {
-    PokiSDK: {
-      init: () => Promise.reject(new Error('Blocked by uBlock Origin extension')),
+    CrazyGames: {
+      SDK: {
+        init: () => Promise.reject(new Error('Blocked by uBlock Origin extension')),
+      },
     },
   };
 
@@ -94,14 +96,20 @@ await runSuite('Suite 1: Ad Blocker, Missing SDK & Rejection Robustness', async 
   // Allow microtasks to settle
   for (let i = 0; i < 5; i++) await Promise.resolve();
 
-  assert(!adBlockedManager.pokiAvailable, 'Ad Blocker: pokiAvailable is false after init rejection');
+  assert(!adBlockedManager.pokiAvailable, 'Ad Blocker: sdkAvailable is false after init rejection');
   assert(adBlockedManager.isBlocked, 'Ad Blocker: isBlocked is set to true when init() rejects');
   assert(!unhandledRejectionCaught, 'Ad Blocker: No unhandledRejection thrown when init() rejects');
 
   // Test 1.4: Ad Blocker rejecting commercialBreak()
   (global as any).window = {
-    PokiSDK: {
-      commercialBreak: () => Promise.reject(new Error('Network error loading commercial ad')),
+    CrazyGames: {
+      SDK: {
+        ad: {
+          requestAd: (_type: string, cb: any) => {
+            cb.adError?.(new Error('Network error loading commercial ad'));
+          },
+        },
+      },
     },
   };
 
@@ -118,8 +126,14 @@ await runSuite('Suite 1: Ad Blocker, Missing SDK & Rejection Robustness', async 
 
   // Test 1.5: Ad Blocker rejecting rewardedBreak()
   (global as any).window = {
-    PokiSDK: {
-      rewardedBreak: () => Promise.reject(new Error('Network error loading rewarded ad')),
+    CrazyGames: {
+      SDK: {
+        ad: {
+          requestAd: (_type: string, cb: any) => {
+            cb.adError?.(new Error('Network error loading rewarded ad'));
+          },
+        },
+      },
     },
   };
 
@@ -136,13 +150,18 @@ await runSuite('Suite 1: Ad Blocker, Missing SDK & Rejection Robustness', async 
 
   // Test 1.6: Synchronous throw resilience across lifecycle methods
   (global as any).window = {
-    PokiSDK: {
-      init: async () => { throw new Error('Async init rejection'); },
-      gameplayStart: () => { throw new Error('Sync start crash'); },
-      gameplayStop: () => { throw new Error('Sync stop crash'); },
-      happyTime: () => { throw new Error('Sync happy crash'); },
-      commercialBreak: () => { throw new Error('Sync comm crash'); },
-      rewardedBreak: () => { throw new Error('Sync rew crash'); },
+    CrazyGames: {
+      SDK: {
+        init: async () => { throw new Error('Async init rejection'); },
+        game: {
+          gameplayStart: () => { throw new Error('Sync start crash'); },
+          gameplayStop: () => { throw new Error('Sync stop crash'); },
+          happytime: () => { throw new Error('Sync happy crash'); },
+        },
+        ad: {
+          requestAd: () => { throw new Error('Sync ad crash'); },
+        },
+      },
     },
   };
 
@@ -158,7 +177,7 @@ await runSuite('Suite 1: Ad Blocker, Missing SDK & Rejection Robustness', async 
   } catch {
     crashed = true;
   }
-  assert(!crashed, 'All lifecycle methods handle crashes inside PokiSDK safely without throwing');
+  assert(!crashed, 'All lifecycle methods handle crashes inside CrazyGames.SDK safely without throwing');
 
   process.removeListener('unhandledRejection', onUnhandled);
   (global as any).window = savedWindow;
@@ -244,8 +263,10 @@ await runSuite('Suite 2: Timeout Bounds Accuracy (5s, 12s, 35s)', async () => {
   (global as any).setTimeout = (cb: any, ms: any) => clock.setTimeout(cb, ms);
 
   (global as any).window = {
-    PokiSDK: {
-      init: () => new Promise<void>(() => {}), // Hanging promise
+    CrazyGames: {
+      SDK: {
+        init: () => new Promise<void>(() => {}), // Hanging promise
+      },
     },
   };
 
@@ -259,17 +280,23 @@ await runSuite('Suite 2: Timeout Bounds Accuracy (5s, 12s, 35s)', async () => {
   // Advance clock past 5000ms (should trigger timeout rejection)
   await clock.advance(20);
   assert(testInitMgr.isBlocked, 'init() at 5000ms: timeout triggered and marked as ad blocker');
-  assert(!testInitMgr.pokiAvailable, 'init() at 5000ms: pokiAvailable is false');
+  assert(!testInitMgr.pokiAvailable, 'init() at 5000ms: sdkAvailable is false');
 
   // Test 2.2: Empirical Hanging Commercial Break Timeout at 12000ms
   (global as any).window = {
-    PokiSDK: {
-      commercialBreak: () => new Promise<void>(() => {}), // Hanging
+    CrazyGames: {
+      SDK: {
+        ad: {
+          requestAd: () => {
+            // Hanging - never calls adFinished or adError
+          },
+        },
+      },
     },
   };
 
   const testCommMgr = new PortalSDKManager();
-  (testCommMgr as any).isPokiAvailable = true;
+  (testCommMgr as any).isSdkAvailable = true;
   (testCommMgr as any).hasAdBlocker = false;
 
   let commFinished = false;
@@ -292,13 +319,19 @@ await runSuite('Suite 2: Timeout Bounds Accuracy (5s, 12s, 35s)', async () => {
 
   // Test 2.3: Empirical Hanging Rewarded Ad Timeout at 35000ms
   (global as any).window = {
-    PokiSDK: {
-      rewardedBreak: () => new Promise<boolean>(() => {}), // Hanging
+    CrazyGames: {
+      SDK: {
+        ad: {
+          requestAd: () => {
+            // Hanging - never calls adFinished or adError
+          },
+        },
+      },
     },
   };
 
   const testRewMgr = new PortalSDKManager();
-  (testRewMgr as any).isPokiAvailable = true;
+  (testRewMgr as any).isSdkAvailable = true;
   (testRewMgr as any).hasAdBlocker = false;
 
   let rewResult: boolean | null = null;
@@ -652,10 +685,10 @@ await runSuite('Suite 5: Port 3000 & Host 0.0.0.0 Configuration', async () => {
   assert(pkg.scripts?.dev?.includes('3000'), 'package.json dev script targets port 3000');
   assert(pkg.scripts?.dev?.includes('0.0.0.0'), 'package.json dev script targets host 0.0.0.0');
 
-  // 3. index.html Poki script
+  // 3. index.html CrazyGames script
   assert(
-    indexContent.includes('src="https://game-cdn.poki.com/scripts/v2/poki-sdk.js"'),
-    'index.html loads Poki SDK v2 from official CDN'
+    indexContent.includes('src="https://sdk.crazygames.com/crazygames-sdk-v3.js"'),
+    'index.html loads CrazyGames SDK v3 from official CDN'
   );
 });
 
@@ -670,9 +703,13 @@ await runSuite('Suite 6: Concurrency, Re-entrancy & Idempotency Stress Tests', a
   let sdkStopCount = 0;
 
   (global as any).window = {
-    PokiSDK: {
-      gameplayStart: () => { sdkStartCount++; },
-      gameplayStop: () => { sdkStopCount++; },
+    CrazyGames: {
+      SDK: {
+        game: {
+          gameplayStart: () => { sdkStartCount++; },
+          gameplayStop: () => { sdkStopCount++; },
+        },
+      },
     },
   };
 

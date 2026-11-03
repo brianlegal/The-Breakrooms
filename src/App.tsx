@@ -108,30 +108,35 @@ export default function App() {
     window.addEventListener('touchstart', onFirstTouch, { passive: true });
     window.addEventListener('resize', detectTouch);
 
-    // Multi-touch isolated look drag handler on canvas container (ignores touches on virtual buttons/joystick)
+    // Multi-touch screen handler: tapping/pressing ANYWHERE on the gameplay screen triggers
+    // Smart Action (Punch / Throw Ball / Super Smash) while dragging still allows fine camera look
     let lookTouchId: number | null = null;
     let touchStartX = 0;
     let touchStartY = 0;
+    const activeActionTouches = new Set<number>();
 
     const handleTouchStart = (e: TouchEvent) => {
-      if (lookTouchId !== null) return;
       const target = e.target as HTMLElement | null;
       if (target?.closest('[data-touch-ui="true"]') || target?.closest('button')) {
         return;
       }
 
+      soundManager.init();
+
       for (let i = 0; i < e.changedTouches.length; i++) {
         const t = e.changedTouches[i];
-        // Ignore lower-left floating joystick zone; allow camera drag anywhere else on canvas
-        const inLeftJoystickZone =
-          t.clientX < window.innerWidth * 0.44 && t.clientY > window.innerHeight * 0.44;
-        if (!inLeftJoystickZone) {
+        activeActionTouches.add(t.identifier);
+
+        if (lookTouchId === null) {
           lookTouchId = t.identifier;
           touchStartX = t.clientX;
           touchStartY = t.clientY;
-          soundManager.init();
-          break;
         }
+      }
+
+      if (engineRef.current) {
+        engineRef.current.setTouchPunchHeld(true);
+        engineRef.current.triggerSmartAction();
       }
     };
 
@@ -153,12 +158,15 @@ export default function App() {
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
-      if (lookTouchId === null) return;
       for (let i = 0; i < e.changedTouches.length; i++) {
-        if (e.changedTouches[i].identifier === lookTouchId) {
+        const id = e.changedTouches[i].identifier;
+        activeActionTouches.delete(id);
+        if (id === lookTouchId) {
           lookTouchId = null;
-          break;
         }
+      }
+      if (activeActionTouches.size === 0) {
+        engineRef.current?.setTouchPunchHeld(false);
       }
     };
 

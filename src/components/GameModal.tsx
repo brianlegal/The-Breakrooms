@@ -91,9 +91,19 @@ export const GameModal: React.FC<GameModalProps> = ({
     mult: number;
   } | null>(null);
   const [isMuted, setIsMuted] = useState(soundManager.getMuted());
+  const [uiScale, setUiScale] = useState(() =>
+    typeof window !== 'undefined'
+      ? Math.min(1, window.innerWidth / 1320, window.innerHeight / 700)
+      : 1
+  );
 
   useEffect(() => {
     initCartoonUiTextures();
+    const handleResize = () => {
+      setUiScale(Math.min(1, window.innerWidth / 1320, window.innerHeight / 700));
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   useEffect(() => {
@@ -267,7 +277,10 @@ export const GameModal: React.FC<GameModalProps> = ({
       className="fixed inset-0 z-40 backdrop-blur-[5px] bg-black/30 pointer-events-none select-none overflow-hidden"
     >
       {/* TOP-LEFT: LANGUAGE TOGGLE & SOUND MUTE TOGGLE BUTTONS */}
-      <div className="fixed top-5 left-6 z-40 pointer-events-auto flex items-center gap-2.5">
+      <div
+        className="fixed top-5 left-6 z-40 pointer-events-auto flex items-center gap-2.5"
+        style={{ transform: `scale(${uiScale})`, transformOrigin: 'top left' }}
+      >
         <button
           type="button"
           onClick={handleToggleLocale}
@@ -290,23 +303,11 @@ export const GameModal: React.FC<GameModalProps> = ({
         </button>
       </div>
 
-      {/* TOP-CENTER: DAILY AD JACKPOT / LUCKY WHEEL BUTTON */}
-      <div className="fixed top-5 left-1/2 -translate-x-1/2 z-40 pointer-events-auto">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            switchGui('jackpot');
-          }}
-          className="cartoon-btn cartoon-badge-gold px-5 py-2 font-arcade text-sm flex items-center gap-2 animate-bounce cursor-pointer"
-        >
-          <CartoonJackpotIcon className="h-5 w-5" />
-          <span>{strings.jackpotBtn}</span>
-        </button>
-      </div>
-
       {/* TOP-RIGHT: PAINTED BRONZE-AMBER COIN COUNTER CARD */}
-      <div className="fixed top-5 right-6 z-40 pointer-events-auto flex items-center gap-3">
+      <div
+        className="fixed top-5 right-6 z-40 pointer-events-auto flex items-center gap-3"
+        style={{ transform: `scale(${uiScale})`, transformOrigin: 'top right' }}
+      >
         <div className="cartoon-card flex items-center gap-2.5 px-5 py-2.5">
           <CartoonCoinIcon className="h-8 w-8 shrink-0" />
           <span className="font-arcade text-2xl leading-none text-[#fff36b] drop-shadow-[0_2px_0_#380905]">
@@ -316,7 +317,10 @@ export const GameModal: React.FC<GameModalProps> = ({
       </div>
 
       {/* PILAR 2: LEFT COLUMN — 4 TEXTURED CARTOON UPGRADE CARDS WITH HANGING PRICE BADGE */}
-      <div className="fixed left-6 top-1/2 -translate-y-1/2 flex flex-col gap-4 z-40 pointer-events-auto">
+      <div
+        className="fixed left-6 top-1/2 flex flex-col gap-4 z-40 pointer-events-auto"
+        style={{ transform: `translateY(-50%) scale(${uiScale})`, transformOrigin: 'left center' }}
+      >
         {UPGRADE_CATALOG.map((meta) => {
           const currentPct = progressionManager.getStatPercentage(meta.key);
           const cost = progressionManager.getUpgradeCost(meta.key);
@@ -400,129 +404,117 @@ export const GameModal: React.FC<GameModalProps> = ({
         })}
       </div>
 
-      {/* BOTTOM-LEFT: GLOSSY CARTOON ACCOUNT RESET BUTTON */}
-      <div className="fixed bottom-6 left-6 z-40 pointer-events-auto">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setSuperBuffArmed(false);
-            setPreviewSkinId('classic_red');
-            setActiveGui('none');
-            onResetAccount();
-          }}
-          className="cartoon-btn cartoon-btn-red px-4 py-3 font-arcade text-xs sm:text-sm flex items-center gap-2"
-        >
-          <CartoonResetIcon className="h-5 w-5" />
-          <span>{strings.resetBtn}</span>
-        </button>
-      </div>
+      {/* PILAR 3: UNIFIED BOTTOM BAR — [BUFF + PLAY + SKINS] + [RECORDS + REBIRTH + BUDGETS] */}
+      <div
+        className="fixed bottom-5 left-1/2 z-40 pointer-events-auto flex items-center justify-center gap-6 sm:gap-10 whitespace-nowrap"
+        style={{ transform: `translateX(-50%) scale(${uiScale})`, transformOrigin: 'bottom center' }}
+      >
+        {/* Main Group: [BUFF] + [PLAY] + [SKINS] */}
+        <div className="flex items-center gap-3.5">
+          {/* Ad Buff Buffer Button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleArmBuffAd();
+            }}
+            disabled={busyAdAction === 'arm_buff'}
+            className={`cartoon-btn ${
+              superBuffArmed ? 'cartoon-btn-green ring-2 ring-yellow-300' : ''
+            } px-5 py-3.5 font-arcade text-sm flex items-center gap-2`}
+          >
+            {superBuffArmed ? (
+              <>
+                <CartoonCheckIcon className="h-5 w-5" />
+                <span>{strings.buffBtn}</span>
+                <CartoonArrowRightIcon className="h-4 w-4" />
+              </>
+            ) : (
+              <>
+                <CartoonVideoAdIcon className="h-5 w-5" />
+                <span>{strings.buffBtn}</span>
+              </>
+            )}
+          </button>
 
-      {/* PILAR 3.1: BOTTOM-CENTER BAR — [BUFF] + [PLAY] + [SKINS] */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3.5 z-40 pointer-events-auto">
-        {/* Ad Buff Buffer Button */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleArmBuffAd();
-          }}
-          disabled={busyAdAction === 'arm_buff'}
-          className={`cartoon-btn ${
-            superBuffArmed ? 'cartoon-btn-green ring-2 ring-yellow-300' : ''
-          } px-5 py-3.5 font-arcade text-sm flex items-center gap-2`}
-        >
-          {superBuffArmed ? (
-            <>
-              <CartoonCheckIcon className="h-5 w-5" />
-              <span>{strings.buffBtn}</span>
-              <CartoonArrowRightIcon className="h-4 w-4" />
-            </>
-          ) : (
-            <>
-              <CartoonVideoAdIcon className="h-5 w-5" />
-              <span>{strings.buffBtn}</span>
-            </>
-          )}
-        </button>
+          {/* Main PLAY Button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handlePlayClick();
+            }}
+            className="cartoon-btn cartoon-btn-green px-8 py-3.5 font-arcade text-xl flex items-center gap-2.5"
+          >
+            {superBuffArmed && <CartoonBoltIcon className="h-6 w-6 animate-bounce" />}
+            <CartoonPlayIcon className="h-6 w-6" />
+            <span>{strings.playBtn}</span>
+          </button>
 
-        {/* Main PLAY Button */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            handlePlayClick();
-          }}
-          className="cartoon-btn cartoon-btn-green px-8 py-3.5 font-arcade text-xl flex items-center gap-2.5"
-        >
-          {superBuffArmed && <CartoonBoltIcon className="h-6 w-6 animate-bounce" />}
-          <CartoonPlayIcon className="h-6 w-6" />
-          <span>{strings.playBtn}</span>
-        </button>
+          {/* SKINS Button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setPreviewSkinId(profile.equippedSkin);
+              switchGui('skins');
+            }}
+            className={`cartoon-btn ${
+              activeGui === 'skins' ? 'cartoon-btn-purple ring-2 ring-yellow-300' : ''
+            } px-5 py-3.5 font-arcade text-sm flex items-center gap-2`}
+          >
+            <CartoonGloveIcon className="h-5 w-5" />
+            <span>{strings.skinsBtn}</span>
+          </button>
+        </div>
 
-        {/* SKINS Button */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setPreviewSkinId(profile.equippedSkin);
-            switchGui('skins');
-          }}
-          className={`cartoon-btn ${
-            activeGui === 'skins' ? 'cartoon-btn-purple ring-2 ring-yellow-300' : ''
-          } px-5 py-3.5 font-arcade text-sm flex items-center gap-2`}
-        >
-          <CartoonGloveIcon className="h-5 w-5" />
-          <span>{strings.skinsBtn}</span>
-        </button>
-      </div>
+        {/* Secondary Group: [RECORDS] + [REBIRTH] + [BUDGETS] */}
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              switchGui('records');
+            }}
+            className={`cartoon-btn ${
+              activeGui === 'records' ? 'cartoon-btn-green' : ''
+            } px-4 py-3 font-arcade text-xs sm:text-sm flex items-center gap-2`}
+          >
+            <CartoonTrophyIcon className="h-5 w-5" />
+            <span>{strings.recordsBtn}</span>
+          </button>
 
-      {/* PILAR 3.2: BOTTOM-RIGHT BAR — [RECORDS] + [REBIRTH] + [BUDGETS] */}
-      <div className="fixed bottom-6 right-6 flex items-center gap-3 z-40 pointer-events-auto">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            switchGui('records');
-          }}
-          className={`cartoon-btn ${
-            activeGui === 'records' ? 'cartoon-btn-green' : ''
-          } px-4 py-3 font-arcade text-xs sm:text-sm flex items-center gap-2`}
-        >
-          <CartoonTrophyIcon className="h-5 w-5" />
-          <span>{strings.recordsBtn}</span>
-        </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              switchGui('rebirth');
+            }}
+            className={`cartoon-btn relative ${
+              activeGui === 'rebirth' ? 'cartoon-btn-green' : 'cartoon-btn-purple'
+            } px-4 py-3 font-arcade text-xs sm:text-sm flex items-center gap-2`}
+          >
+            <CartoonRebirthIcon className="h-5 w-5" />
+            <span>{strings.rebirthBtn}</span>
+            {canRebirthNow && (
+              <span className="absolute -top-1.5 -right-1.5 h-3.5 w-3.5 rounded-full border-2 border-[#4a0e09] bg-emerald-400 animate-ping" />
+            )}
+          </button>
 
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            switchGui('rebirth');
-          }}
-          className={`cartoon-btn relative ${
-            activeGui === 'rebirth' ? 'cartoon-btn-green' : 'cartoon-btn-purple'
-          } px-4 py-3 font-arcade text-xs sm:text-sm flex items-center gap-2`}
-        >
-          <CartoonRebirthIcon className="h-5 w-5" />
-          <span>{strings.rebirthBtn}</span>
-          {canRebirthNow && (
-            <span className="absolute -top-1.5 -right-1.5 h-3.5 w-3.5 rounded-full border-2 border-[#4a0e09] bg-emerald-400 animate-ping" />
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            switchGui('budgets');
-          }}
-          className={`cartoon-btn ${
-            activeGui === 'budgets' ? 'cartoon-btn-green' : ''
-          } px-4 py-3 font-arcade text-xs sm:text-sm flex items-center gap-2`}
-        >
-          <CartoonBoltIcon className="h-5 w-5" />
-          <span>{strings.budgetsBtn}</span>
-        </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              switchGui('budgets');
+            }}
+            className={`cartoon-btn ${
+              activeGui === 'budgets' ? 'cartoon-btn-green' : ''
+            } px-4 py-3 font-arcade text-xs sm:text-sm flex items-center gap-2`}
+          >
+            <CartoonBoltIcon className="h-5 w-5" />
+            <span>{strings.budgetsBtn}</span>
+          </button>
+        </div>
       </div>
 
       {/* PILAR 3.3: CENTER POP-UP CARTOON WINDOW WITH RED [X] CLOSE BUTTON */}
@@ -534,6 +526,7 @@ export const GameModal: React.FC<GameModalProps> = ({
           <div
             onClick={(e) => e.stopPropagation()}
             className="cartoon-window w-full max-w-md p-5"
+            style={{ transform: `scale(${uiScale})`, transformOrigin: 'center center' }}
           >
             {/* Window Header + Glossy Cartoon Red [X] Close Button */}
             <div className="flex items-center justify-between border-b-3 border-[#380905]/60 pb-3 mb-4">
@@ -560,12 +553,6 @@ export const GameModal: React.FC<GameModalProps> = ({
                   <>
                     <CartoonGloveIcon className="h-7 w-7 text-[#fff36b]" />
                     <span>{strings.skinsModalTitle}</span>
-                  </>
-                )}
-                {activeGui === 'jackpot' && (
-                  <>
-                    <CartoonJackpotIcon className="h-7 w-7 text-[#fff36b]" />
-                    <span>{strings.jackpotModalTitle}</span>
                   </>
                 )}
               </div>
@@ -884,130 +871,6 @@ export const GameModal: React.FC<GameModalProps> = ({
                     </div>
                   )}
                 </div>
-              </div>
-            )}
-
-            {/* PILAR 8: CELEBRATORY SCALED JACKPOT MODAL */}
-            {activeGui === 'jackpot' && (
-              <div className="flex flex-col items-center gap-4 text-center">
-                {/* Celebratory Gold Banner Header */}
-                <div className="cartoon-jackpot-banner w-full">
-                  <CartoonJackpotIcon className="h-8 w-8 text-[#380905] shrink-0 drop-shadow-[0_1px_1px_rgba(255,255,255,0.6)]" />
-                  <span className="text-base sm:text-lg font-arcade tracking-wider uppercase text-[#380905]">
-                    {strings.jackpotModalTitle}
-                  </span>
-                  <CartoonTrophyIcon className="h-7 w-7 text-[#380905] shrink-0 drop-shadow-[0_1px_1px_rgba(255,255,255,0.6)]" />
-                </div>
-
-                <p className="font-arcade text-xs sm:text-sm text-amber-200/90 max-w-sm">
-                  {strings.jackpotModalSub}
-                </p>
-
-                {/* Match Run Breakdown Card */}
-                <div className="cartoon-card-cream w-full flex flex-col gap-2.5 p-3.5 text-center">
-                  <div className="flex items-center justify-between px-2 font-arcade text-xs sm:text-sm">
-                    <span className="flex items-center gap-1.5 text-amber-200/90">
-                      <CartoonCoinIcon className="h-5 w-5 text-amber-400 shrink-0" />
-                      {strings.jackpotMatchCoins}:
-                    </span>
-                    <span className="cartoon-pill-inset px-2.5 py-0.5 text-yellow-300 font-arcade">
-                      +{runCoinsEarned.toLocaleString()}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between px-2 font-arcade text-xs sm:text-sm">
-                    <span className="flex items-center gap-1.5 text-amber-200/90">
-                      <CartoonTrophyIcon className="h-5 w-5 text-amber-400 shrink-0" />
-                      {strings.jackpotRoomBonus} (Lv. {effectiveRoomLevel}):
-                    </span>
-                    <span className="cartoon-pill-inset px-2.5 py-0.5 text-amber-300 font-arcade">
-                      +{roomBonus.toLocaleString()}
-                    </span>
-                  </div>
-
-                  {currentMult > 1 && (
-                    <div className="flex items-center justify-between px-2 font-arcade text-xs">
-                      <span className="flex items-center gap-1.5 text-emerald-300/90">
-                        <CartoonRebirthIcon className="h-4 w-4 text-emerald-400 shrink-0" />
-                        {strings.rebirthCoinMultLabel}:
-                      </span>
-                      <span className="cartoon-pill-inset px-2.5 py-0.5 text-emerald-400 font-arcade">
-                        {currentMult.toFixed(1)}X
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="border-t border-[#380905]/40 pt-2 flex items-center justify-between px-2 font-arcade text-[11px] text-amber-200/70">
-                    <span>{strings.jackpotSafetyFloor}:</span>
-                    <span className="text-yellow-300/90">+{floorPrize.toLocaleString()}</span>
-                  </div>
-                </div>
-
-                {/* Multiplier Tier Preview Badges */}
-                <div className="grid grid-cols-3 gap-2 w-full font-arcade text-xs">
-                  <div className="cartoon-pill-inset p-2 flex flex-col items-center">
-                    <span className="text-[10px] text-blue-300 tracking-wider">
-                      {strings.jackpotTierGrand}
-                    </span>
-                    <span className="text-blue-200 text-sm font-bold">2.0X</span>
-                    <span className="text-[9px] text-amber-200/60">60%</span>
-                  </div>
-                  <div className="cartoon-pill-inset p-2 flex flex-col items-center">
-                    <span className="text-[10px] text-purple-300 tracking-wider">
-                      {strings.jackpotTierMega}
-                    </span>
-                    <span className="text-purple-200 text-sm font-bold">3.5X</span>
-                    <span className="text-[9px] text-amber-200/60">30%</span>
-                  </div>
-                  <div className="cartoon-pill-inset p-2 flex flex-col items-center">
-                    <span className="text-[10px] text-amber-300 tracking-wider">
-                      {strings.jackpotTierUltra}
-                    </span>
-                    <span className="text-amber-300 text-sm font-bold">5.0X</span>
-                    <span className="text-[9px] text-amber-200/60">10%</span>
-                  </div>
-                </div>
-
-                {/* Victory Celebratory Banner (When won/claimed) */}
-                {jackpotWonResult !== null && (
-                  <div className="cartoon-jackpot-glow w-full p-4 flex flex-col items-center gap-2 animate-bounce">
-                    <div className="flex items-center justify-center gap-2 text-amber-300 font-arcade text-sm sm:text-base tracking-wider uppercase">
-                      <CartoonStarIcon className="h-5 w-5 text-amber-300 shrink-0 drop-shadow" />
-                      <span>
-                        {jackpotWonResult.tier === 'grand' && strings.jackpotTierGrand}
-                        {jackpotWonResult.tier === 'mega' && strings.jackpotTierMega}
-                        {jackpotWonResult.tier === 'ultra' && strings.jackpotTierUltra}
-                        {' '}({jackpotWonResult.mult.toFixed(1)}X)
-                      </span>
-                      <CartoonStarIcon className="h-5 w-5 text-amber-300 shrink-0 drop-shadow" />
-                    </div>
-
-                    <div className="flex items-center justify-center gap-2 font-arcade text-2xl sm:text-3xl text-[#fff36b] drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                      <CartoonCoinIcon className="h-8 w-8 shrink-0" />
-                      <span>+{jackpotWonResult.amount.toLocaleString()} {strings.jackpotCoinsSuffix}</span>
-                    </div>
-
-                    <div className="cartoon-pill-inset px-3.5 py-1 font-arcade text-[11px] sm:text-xs text-emerald-300 flex items-center justify-center gap-1.5">
-                      <CartoonCheckIcon className="h-4 w-4 text-emerald-400 shrink-0" />
-                      <span>{strings.jackpotCreditedNotice}</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Claim / Rewarded Ad Button */}
-                <button
-                  type="button"
-                  onClick={handleClaimJackpot}
-                  disabled={busyAdAction === 'jackpot_claim'}
-                  className="cartoon-btn cartoon-btn-green w-full py-3.5 font-arcade text-base sm:text-lg flex items-center justify-center gap-2.5 cursor-pointer shadow-lg"
-                >
-                  <CartoonVideoAdIcon className="h-6 w-6" />
-                  <span>
-                    {busyAdAction === 'jackpot_claim'
-                      ? strings.jackpotClaiming
-                      : strings.jackpotClaimBtn}
-                  </span>
-                </button>
               </div>
             )}
           </div>
